@@ -218,7 +218,7 @@ class Driver implements \Plasma\DriverInterface {
      * @return void
      */
     function quit(): void {
-        /** @var \Plasma\CommandInterface  $command */
+        /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
         while($command = $this->queue->shift()) {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
         }
@@ -343,9 +343,9 @@ class Driver implements \Plasma\DriverInterface {
     
     /**
      * Get the next command, or null.
-     * @return \Plasma\CommandInterface|null
+     * @return \Plasma\Drivers\MySQL\Commands\CommandInterface|null
      */
-    function getNextCommand(): ?\Plasma\CommandInterface {
+    function getNextCommand(): ?\Plasma\Drivers\MySQL\Commands\CommandInterface {
         if($this->queue->count() === 0) {
             if($this->goingAway) {
                 $this->goingAway->resolve();
@@ -354,7 +354,7 @@ class Driver implements \Plasma\DriverInterface {
             return null;
         }
         
-        /** @var \Plasma\CommandInterface  $command */
+        /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
         $command =  $this->queue->dequeue();
         
         if($command->waitForCompletion()) {
