@@ -17,87 +17,87 @@ class CommandConstants {
     /**
      * mysql_close
      */
-    const QUIT = 0x01;
+    const CMD_QUIT = 0x01;
     
     /**
      * mysql_select_db
      */
-    const INIT_DB = 0x02;
+    const CMD_INIT_DB = 0x02;
     
     /**
      * mysql_real_query
      */
-    const QUERY = 0x03;
+    const CMD_QUERY = 0x03;
     
     /**
      * mysql_list_fields
      */
-    const FIELD_LIST = 0x04;
+    const CMD_FIELD_LIST = 0x04;
     
     /**
      * mysql_create_db (deprecated)
      */
-    const CREATE_DB = 0x05;
+    const CMD_CREATE_DB = 0x05;
     
     /**
      * mysql_drop_db (deprecated)
      */
-    const DROP_DB = 0x06;
+    const CMD_DROP_DB = 0x06;
     
     /**
      * mysql_refresh
      */
-    const REFRESH = 0x07;
+    const CMD_REFRESH = 0x07;
     
     /**
      * mysql_shutdown
      */
-    const SHUTDOWN = 0x08;
+    const CMD_SHUTDOWN = 0x08;
     
     /**
      * mysql_stat
      */
-    const STATISTICS = 0x09;
+    const CMD_STATISTICS = 0x09;
     
     /**
      * mysql_list_processes
      */
-    const PROCESS_INFO = 0x0a;
+    const CMD_PROCESS_INFO = 0x0a;
     
     /**
      * mysql_kill
      */
-    const PROCESS_KILL = 0x0c;
+    const CMD_PROCESS_KILL = 0x0c;
     
     /**
      * mysql_dump_debug_info
      */
-    const DEBUG = 0x0d;
+    const CMD_DEBUG = 0x0d;
     
     /**
      * mysql_ping
      */
-    const PING = 0x0e;
+    const CMD_PING = 0x0e;
     
     /**
      * mysql_change_user
      */
-    const CHANGE_USER = 0x11;
+    const CMD_CHANGE_USER = 0x11;
     
     /**
      * sent by the slave IO thread to request a binlog
      */
-    const BINLOG_DUMP = 0x12;
+    const CMD_BINLOG_DUMP = 0x12;
     
     /**
      * LOAD TABLE ... FROM MASTER (deprecated)
      */
-    const TABLE_DUMP = 0x13;
+    const CMD_TABLE_DUMP = 0x13;
     
     /**
      * sent by the slave to register with the master (optional)
      */
-    const REGISTER_SLAVE = 0x15;
+    const CMD_REGISTER_SLAVE = 0x15;
     
     /**
      * mysql_stmt_prepare

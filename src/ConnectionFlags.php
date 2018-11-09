@@ -108,4 +108,9 @@ class ConnectionFlags {
     * Client supports plugin authentication (1 << 19)
     */
     const CLIENT_PLUGIN_AUTH = 524288;
+    
+    /**
+     * Deprecates EOF packet. Replaced by OK packet.
+     */
+    const CLIENT_DEPRECATE_EOF = 16777216;
 }
