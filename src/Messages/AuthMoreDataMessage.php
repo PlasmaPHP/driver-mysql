@@ -10,15 +10,22 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents an incoming message.
+ * Represents a Auth More Data Message.
  * @internal
  */
-interface MessageInterface {
+class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+    /**
+     * @var string|null
+     */
+    public $authPluginData;
+    
     /**
      * Get the identifier for the packet.
      * @return string
      */
-    static function getID(): string;
+    static function getID(): string {
+        return "\x01";
+    }
     
     /**
      * Parses the message, once the complete string has been received.
@@ -28,11 +35,16 @@ interface MessageInterface {
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser);
+    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
+        $this->authPluginData = $buffer;
+        return '';
+    }
     
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
      * @return int
      */
-    function setParserState(): int;
+    function setParserState(): int {
+        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH;
+    }
 }

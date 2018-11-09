@@ -22,7 +22,7 @@ class AuthSwitchResponseCommand implements CommandInterface {
     protected $message;
     
     /**
-     * @var string
+     * @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface
      */
     protected $plugin;
     
@@ -39,10 +39,10 @@ class AuthSwitchResponseCommand implements CommandInterface {
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage  $message
-     * @param string                                                   $plugin
+     * @param \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface    $plugin
      * @param string                                                   $password
      */
-    function __construct(\Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage $message, string $plugin, string $password) {
+    function __construct(\Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage $message, \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface $plugin, string $password) {
         $this->message = $message;
         $this->plugin = $plugin;
         $this->password = $password;
@@ -53,12 +53,8 @@ class AuthSwitchResponseCommand implements CommandInterface {
      * @return string
      */
     function getEncodedMessage(): string {
-        $plug = $this->plugin;
-        
-        /** @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface  $auth */
-        $auth = new $plug($this->parser, $this->handshake);
-        
-        return $auth->getHandshakeAuth($this->password);
+        $this->finished = true;
+        return $this->plugin->getHandshakeAuth($this->password);
     }
     
     /**
@@ -80,19 +76,21 @@ class AuthSwitchResponseCommand implements CommandInterface {
     
     /**
      * Sets the command as errored. This state gets reported back to the user.
+     * @param \Throwable  $throwable
      * @return void
      */
-    function onError(\Throwable $throwable) {
+    function onError(\Throwable $throwable): void {
         $this->finished = true;
         $this->emit('error', array($throwable));
     }
     
     /**
      * Sends the next received value into the command.
+     * @param mixed  $value
      * @return void
      */
     function onNext($value): void {
-        // Nothing do to
+        // Nothing to do
     }
     
     /**

@@ -26,6 +26,7 @@ class QuitCommand implements CommandInterface {
      * @return string
      */
     function getEncodedMessage(): string {
+        $this->finished = true;
         return \chr(\Plasma\Drivers\MySQL\CommandConstants::CMD_QUIT);
     }
     
@@ -48,19 +49,21 @@ class QuitCommand implements CommandInterface {
     
     /**
      * Sets the command as errored. This state gets reported back to the user.
+     * @param \Throwable  $throwable
      * @return void
      */
-    function onError(\Throwable $throwable) {
+    function onError(\Throwable $throwable): void {
         $this->finished = true;
         $this->emit('error', array($throwable));
     }
     
     /**
      * Sends the next received value into the command.
+     * @param mixed  $value
      * @return void
      */
     function onNext($value): void {
-        // Nothing do to
+        // Nothing to do
     }
     
     /**

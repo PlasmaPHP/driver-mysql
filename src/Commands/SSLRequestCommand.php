@@ -51,6 +51,7 @@ class SSLRequestCommand implements CommandInterface {
         $packet = \pack('VVc', $this->capability, $maxPacketSize, $charsetNumber);
         $packet .= \str_repeat("\x00", 23);
         
+        $this->finished = true;
         return $packet;
     }
     
@@ -73,19 +74,21 @@ class SSLRequestCommand implements CommandInterface {
     
     /**
      * Sets the command as errored. This state gets reported back to the user.
+     * @param \Throwable  $throwable
      * @return void
      */
-    function onError(\Throwable $throwable) {
+    function onError(\Throwable $throwable): void {
         $this->finished = true;
         $this->emit('error', array($throwable));
     }
     
     /**
      * Sends the next received value into the command.
+     * @param mixed  $value
      * @return void
      */
     function onNext($value): void {
-        // Nothing do to
+        // Nothing to do
     }
     
     /**

@@ -27,7 +27,8 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
      * @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface[]
      */
     protected static $authPlugins = array(
-        \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_SECURE_CONNECTION => \Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection::class
+        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION => \Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection::class,
+        'mysql_native_password' => \Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection::class
     );
     
     /**

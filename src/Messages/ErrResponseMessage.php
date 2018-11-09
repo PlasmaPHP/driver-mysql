@@ -10,26 +10,40 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents a Auth Switch Request Message.
+ * Represents an Err Response Message.
  * @internal
  */
-class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
-     * @var string|null
+     * Error code.
+     * @var int
      */
-    public $authPluginName;
+    public $errorCode;
     
     /**
+     * SQL State marker, if any.
      * @var string|null
      */
-    public $authPluginData;
+    public $sqlStateMarker;
+    
+    /**
+     * SQL State, if any.
+     * @var string|null
+     */
+    public $sqlState;
+    
+    /**
+     * Error message.
+     * @var string
+     */
+    public $errorMessage;
     
     /**
      * Get the identifier for the packet.
      * @return string
      */
     static function getID(): string {
-        return "\xFEa";
+        return "\xFF";
     }
     
     /**
@@ -46,10 +60,20 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
             return false;
         }
         
-        if(\strlen($buffer) > $nameLength) {
-            $this->authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-            $this->authPluginData = $buffer;
+        $this->errorCode = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        
+        $handshake = $parser->getHandshakeMessage();
+        if(!$handshake || $parser->getState() == \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE) {
+            $exception = new \Plasma\Drivers\MySQL\Messages\ParseException($buffer, $this->errorCode);
+            $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
+            $exception->setBuffer('');
+            
+            throw $exception;
         }
+        
+        $this->sqlStateMarker = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 1);
+        $this->sqlState = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 5);
+        $this->errorMessage = $buffer;
         
         return '';
     }
@@ -59,6 +83,6 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH_SENT;
+        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
     }
 }

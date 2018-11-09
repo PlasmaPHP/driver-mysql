@@ -10,26 +10,29 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents a Auth Switch Request Message.
+ * Represents an EOF Message.
  * @internal
  */
-class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
-     * @var string|null
+     * The server status flags.
+     * @var int
+     * @see \Plasma\Drivers\MySQL\StatusFlags
      */
-    public $authPluginName;
+    public $statusFlags;
     
     /**
-     * @var string|null
+     * Count of warnings.
+     * @var int
      */
-    public $authPluginData;
+    public $warningsCount;
     
     /**
      * Get the identifier for the packet.
      * @return string
      */
     static function getID(): string {
-        return "\xFEa";
+        return "\xFE";
     }
     
     /**
@@ -41,17 +44,15 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
-        $nameLength = \strpos($buffer, "\x00");
-        if($nameLength === false) {
-            return false;
+        $handshake = $parser->getHandshakeMessage();
+        if(!$handshake) {
+            throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
         }
         
-        if(\strlen($buffer) > $nameLength) {
-            $this->authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-            $this->authPluginData = $buffer;
-        }
+        $this->statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $this->warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
         
-        return '';
+        return $buffer;
     }
     
     /**
@@ -59,6 +60,6 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH_SENT;
+        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
     }
 }

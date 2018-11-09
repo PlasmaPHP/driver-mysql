@@ -15,9 +15,47 @@ namespace Plasma\Drivers\MySQL\Messages;
  */
 class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
+     * Count of affected rows by the last query.
+     * @var int
+     */
+    public $affectedRows;
+    
+    /**
+     * Last inserted ID by the last `INSERT` query.
+     * @var int
+     */
+    public $lastInsertedID;
+    
+    /**
+     * The server status flags.
+     * @var int
+     * @see \Plasma\Drivers\MySQL\StatusFlags
+     */
+    public $statusFlags;
+    
+    /**
+     * Count of warnings.
+     * @var int
+     */
+    public $warningsCount;
+    
+    /**
+     * Server session information, if any.
      * @var string|null
      */
-    public $a;
+    public $sessionInfo;
+    
+    /**
+     * Server session state changes, if any.
+     * @var string|null
+     */
+    public $sessionStateChanges;
+    
+    /**
+     * Human readable status information, if any.
+     * @var string|null
+     */
+    public $info;
     
     /**
      * Get the identifier for the packet.
@@ -30,21 +68,55 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
+     * @param string                                $buffer
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
+    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
         $nameLength = \strpos($buffer, "\x00");
         if($nameLength === false) {
             return false;
         }
         
-        if(\strlen($buffer) > $nameLength) {
-            $this->authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-            $this->authPluginData = $buffer;
+        $affectedRows = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
+        $lastInsertedID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
+        
+        $handshake = $parser->getHandshakeMessage();
+        if(!$handshake) {
+            throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
         }
         
-        return '';
+        $statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        
+        if(($handshake->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
+            $sessionInfo = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
+            
+            if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
+                $sessionStateChanges = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
+            } else {
+                $sessionStateChanges = null;
+            }
+            
+            $info = null;
+        } else {
+            $sessionInfo = null;
+            $sessionStateChanges = null;
+            $info = $buffer;
+        }
+        
+        $this->affectedRows = $affectedRows;
+        $this->lastInsertedID = $lastInsertedID;
+        
+        $this->statusFlags = $statusFlags;
+        $this->warningsCount = $warningsCount;
+        
+        $this->sessionInfo = $sessionInfo;
+        $this->sessionStateChanges = $sessionStateChanges;
+        $this->info = $info;
+        
+        return $buffer;
     }
     
     /**
@@ -52,6 +124,6 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH_SENT;
+        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
     }
 }

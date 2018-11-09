@@ -73,11 +73,21 @@ class Driver implements \Plasma\DriverInterface {
      */
     function __construct(\React\EventLoop\LoopInterface $loop, array $options) {
         $this->validateOptions($options);
+        
+        $this->loop = $loop;
         $this->options = $options;
         
         $this->connector = ($this->options['connector'] ?? (new \React\Socket\Connector($loop)));
         $this->encryption = new \React\Socket\StreamEncryption($this->loop, false);
         $this->queue = new \SplQueue();
+    }
+    
+    /**
+     * Returns the event loop.
+     * @var \React\EventLoop\LoopInterface
+     */
+    function getLoop(): \React\EventLoop\LoopInterface {
+        return $this->loop;
     }
     
     /**
@@ -115,6 +125,7 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         $host = $parts['host'].':'.($parts['port'] ?? 3306);
+        $this->connectionState = static::CONNECTION_STARTED;
         
         return $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts) {
             // See description of property encryption
@@ -123,16 +134,21 @@ class Driver implements \Plasma\DriverInterface {
             }
             
             $this->busy = static::STATE_BUSY;
+            $this->connectionState = static::CONNECTION_MADE;
+            $this->connection = $connection;
             
-            $connection->on('close', function () {
+            $this->connection->on('error', function (\Throwable $error) {
+                $this->emit('error', array($error));
+            });
+            
+            $this->connection->on('close', function () {
                 $this->connection = null;
                 $this->connectionState = static::CONNECTION_UNUSABLE;
                 
                 $this->emit('close');
             });
             
-            $this->connection = $connection;
-            $this->parser = new \Plasma\Drivers\MySQL\ProtocolParser($this, $connection);
+            $this->parser = new \Plasma\Drivers\MySQL\ProtocolParser($this, $this->connection);
             
             $user = ($parts['user'] ?? 'root');
             $password = ($parts['password'] ?? '');
@@ -178,7 +194,22 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         return $this->goingAway->promise()->then(function () {
-            $this->quit();
+            $deferred = new \React\Promise\Deferred();
+            
+            $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+            
+            $connection->once('close', function () use (&$deferred) {
+                $deferred->resolve();
+            });
+            
+            $quit->once('end', function () use (&$deferred) {
+                $deferred->resolve();
+                $this->quit();
+            });
+            
+            $this->parser->invokeCommand($quit);
+            
+            return $deferred->promise();
         });
     }
     
@@ -186,11 +217,14 @@ class Driver implements \Plasma\DriverInterface {
      * Forcefully closes the connection, without waiting for any outstanding requests. This will reject all outstanding requests.
      * @return void
      */
-    function quit(): void { // TODO
+    function quit(): void {
         /** @var \Plasma\CommandInterface  $command */
         while($command = $this->queue->shift()) {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
         }
+        
+        $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $this->parser->invokeCommand($quit);
         
         $this->connection->close();
     }
@@ -313,6 +347,10 @@ class Driver implements \Plasma\DriverInterface {
      */
     function getNextCommand(): ?\Plasma\CommandInterface {
         if($this->queue->count() === 0) {
+            if($this->goingAway) {
+                $this->goingAway->resolve();
+            }
+            
             return null;
         }
         
@@ -343,15 +381,11 @@ class Driver implements \Plasma\DriverInterface {
             if($message instanceof \Plasma\Drivers\MySQL\Messages\HandshakeMessage) {
                 $this->parser->removeListener('message', $listener);
                 
+                $this->connectionState = static::CONNECTION_SETENV;
                 $clientFlags = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_CAPABILITIES;
                 
                 if($db !== '') {
-                    $clientFlags |= \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_CONNECT_WITH_DB;
-                }
-                
-                // Add Client Protocol 41 constant, if server supports it (Handshake Response 41)
-                if(($message->capabilities & \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_PROTOCOL_41) !== 0) {
-                    $clientFlags |= \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_PROTOCOL_41;
+                    $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_CONNECT_WITH_DB;
                 }
                 
                 // Check if we support auth plugins
@@ -359,24 +393,26 @@ class Driver implements \Plasma\DriverInterface {
                 $plugin = null;
                 
                 foreach($plugins as $key => $plug) {
-                    if(\is_int($key) && ($message->capabilities & $key) !== 0) {
+                    if(\is_int($key) && ($message->capability & $key) !== 0) {
                         $plugin = $plug;
-                        $clientFlags |= \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_PLUGIN_AUTH;
+                        $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH;
                         break;
                     } elseif($key === $message->authPluginName) {
                         $plugin = $plug;
-                        $clientFlags |= \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_PLUGIN_AUTH;
+                        $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH;
                         break;
                     }
                 }
                 
                 // If SSL supported, connect through SSL
-                if(($message->capability & \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_SSL) !== 0) {
-                    $clientFlags |= \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_SSL;
+                if(($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) {
+                    $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
                     
                     $ssl = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($message, $clientFlags);
                     
                     $ssl->once('end', function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
+                        $this->connectionState = static::CONNECTION_SSL_STARTUP;
+                        
                         $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
                             $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
                         }, function (\Throwable $error) use (&$deferred) {
@@ -404,15 +440,13 @@ class Driver implements \Plasma\DriverInterface {
         
         $this->parser->on('message', $listener);
         
-        $listener2 = function (\Plasma\Drivers\MySQL\Messages\MessageInterface $message) use (&$deferred, &$listener2) {
-            if($message instanceof \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage) {
-                $this->parser->removeListener('message', $listener2);
-                
-                
+        $this->parser->on('message', function (\Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
+            if($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
+                $this->connectionState = static::CONNECTION_OK;
             }
-        };
-        
-        $this->parser->on('message', $listener2);
+            
+            $this->emit('eventRelay', array('message', $message));
+        });
     }
     
     /**
@@ -442,21 +476,39 @@ class Driver implements \Plasma\DriverInterface {
         
         if($plugin) {
             $listener = function (\Plasma\Drivers\MySQL\Messages\MessageInterface $message) use ($password, &$deferred, &$listener) {
+                /** @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface|null  $plugin */
+                static $plugin;
+                
                 if($message instanceof \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage) {
-                    $this->parser->removeListener('message', $listener);
-                    
                     $name = $message->authPluginName;
                     
                     if($name !== null) {
                         foreach($plugins as $key => $plug) {
                             if($key === $name) {
-                                $command = new \Plasma\Drivers\MySQL\Commands\AuthSwitchResponseCommand($message, $plug, $password);
+                                $plugin = new $plug($this->parser, $message);
+                                
+                                $command = new \Plasma\Drivers\MySQL\Commands\AuthSwitchResponseCommand($message, $plugin, $password);
                                 return $this->parser->invokeCommand($command);
                             }
                         }
                     }
                     
                     $deferred->reject((new \Plasma\Exception('Requested authentication method '.($name ? '"'.$name.'" ' : '').'is not supported')));
+                } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage) {
+                    if($plugin === null) {
+                        $deferred->reject((new \Plasma\Exception('No auth plugin is in use, but we received auth more data packet')));
+                        return $this->connection->close();
+                    }
+                    
+                    try {
+                        $command = $plugin->receiveMoreData($message);
+                        return $this->parser->invokeCommand($command);
+                    } catch (\Plasma\Exception $e) {
+                        $deferred->reject($e);
+                        $this->connection->close();
+                    }
+                } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
+                    $this->parser->removeListener('message', $listener);
                 }
             };
             
@@ -464,6 +516,7 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         $this->parser->invokeCommand($auth);
+        $this->connectionState = static::CONNECTION_AWAITING_RESPONSE;
     }
     
     /**

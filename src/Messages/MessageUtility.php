@@ -78,7 +78,7 @@ class MessageUtility {
      * Returns the decoded integer 0 to 2^64 or `null` for special null int.
      * @return int|null
      */
-    static function readIntLen(string &$buffer): ?int {
+    static function readIntLength(string &$buffer): ?int {
         $f = static::readInt1();
         if($f <= 250) {
             return $f;
@@ -104,7 +104,7 @@ class MessageUtility {
      * @return string|null
      */
     static function readStringLength(string &$buffer, ?int $length = null): ?string {
-        $length = ($length !== null ? $length : static::readIntLen());
+        $length = ($length !== null ? $length : static::readIntLength());
         if($length === null) {
             return null;
         }

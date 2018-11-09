@@ -15,41 +15,50 @@ namespace Plasma\Drivers\MySQL\Messages;
  */
 class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
+     * The Handshake Protocol version.
      * @var int
      */
     public $protocolVersion;
     
     /**
+     * A human readable server version.
      * @var string
      */
     public $serverVersion;
     
     /**
+     * The connection ID.
      * @var int
      */
     public $connectionID;
     
     /**
+     * Authentication data.
      * @var string
      */
     public $scramble;
     
     /**
+     * The server's capability flags.
      * @var int
      */
     public $capability;
     
     /**
+     * The character set.
      * @var int|null
      */
     public $characterSet;
     
     /**
+     * The status flags.
      * @var int|null
+     * @see \Plasma\Drivers\MySQL\StatusFlags
      */
     public $statusFlags;
     
     /**
+     * The authentication plugin name.
      * @var string|null
      */
     public $authPluginName;
@@ -65,24 +74,16 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
+     * @param string                                $buffer
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $version = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
-        if($version === 0xFF) {
-            $errno = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-            $errmsg = $buffer;
-            
-            $exception = new \Plasma\Drivers\MySQL\Messages\ParseException($errmsg, $errno);
-            $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
-            $exception->setBuffer('');
-            
-            throw $exception;
-        }
+    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
+        $protocol = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
         
         switch($protocol) {
-            case 0x0a:
+            case 0x0A:
                 return $this->parseProtocol10($buffer);
             break;
             case 0x09:
@@ -145,7 +146,15 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
             $statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
             $capability += \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer) << 16;
             
-            if(($capability & \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_SECURE_CONNECTION) !== 0) {
+            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41) === 0) {
+                $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('The old MySQL protocol 320 is not supported');
+                $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
+                $exception->setBuffer('');
+                
+                throw $exception;
+            }
+            
+            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
                 $authDataLength = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
                 $len = \max(13, ($authDataLength - 8));
                 
@@ -154,7 +163,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 $buffer = \substr($buffer, 1);
             }
             
-            if(($capability & \Plasma\Drivers\MySQL\ConnectionFlags::CLIENT_PLUGIN_AUTH) !== 0) {
+            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
                 $authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
             }
             

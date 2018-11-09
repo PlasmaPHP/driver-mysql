@@ -49,4 +49,14 @@ class AuthSecureConnection implements AuthPluginInterface {
         
         return "\x00";
     }
+    
+    /**
+     * We received more auth data, so we send it into the auth plugin.
+     * @param \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage  $message
+     * @return \Plasma\Drivers\MySQL\Commands\CommandInterface
+     * @throws \Plasma\Exception
+     */
+    function receiveMoreData(\Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage $message): \Plasma\Drivers\MySQL\Commands\CommandInterface {
+        throw new \Plasma\Exception('Auth plugin does not support auth more data');
+    }
 }

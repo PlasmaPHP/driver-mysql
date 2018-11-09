@@ -27,4 +27,12 @@ interface AuthPluginInterface {
      * @return string
      */
     function getHandshakeAuth(string $password): string;
+    
+    /**
+     * We received more auth data, so we send it into the auth plugin.
+     * @param \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage  $message
+     * @return \Plasma\Drivers\MySQL\Commands\CommandInterface
+     * @throws \Plasma\Exception
+     */
+    function receiveMoreData(\Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage $message): \Plasma\Drivers\MySQL\Commands\CommandInterface;
 }
