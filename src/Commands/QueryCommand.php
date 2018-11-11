@@ -15,6 +15,13 @@ namespace Plasma\Drivers\MySQL\Commands;
  */
 class QueryCommand extends PromiseCommand {
     /**
+     * The identifier for this command.
+     * @var int
+     * @source
+     */
+    const COMMAND_ID = 0x03;
+    
+    /**
      * @var \Plasma\DriverInterface
      */
     protected $driver;
@@ -25,7 +32,7 @@ class QueryCommand extends PromiseCommand {
     protected $query;
     
     /**
-     * @var array|null
+     * @var \Plasma\ColumnDefinitionInterface[]
      */
     protected $fields = array();
     
@@ -35,7 +42,7 @@ class QueryCommand extends PromiseCommand {
     protected $fieldsCount;
     
     /**
-     * @var \Plasma\StreamQueryResult|null
+     * @var \Plasma\StreamQueryResult|\Plasma\QueryResult|null
      */
     protected $resolveValue;
     
@@ -56,7 +63,7 @@ class QueryCommand extends PromiseCommand {
      * @return string
      */
     function getEncodedMessage(): string {
-        return \chr(\Plasma\Drivers\MySQL\CommandConstants::CMD_QUERY).$this->query;
+        return \chr(static::COMMAND_ID).$this->query;
     }
     
     /**
@@ -66,55 +73,13 @@ class QueryCommand extends PromiseCommand {
      */
     function onNext($value): void {
         if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
-            $parser = $value->getParser();
-            $buffer = $value->getBuffer();
-            
-            if($fieldsParsed) {
-                $row = array();
-                
-                /** @var \Plasma\ColumnDefinitionInterface  $column */
-                foreach($this->fields as $column) {
-                    $row[$column->getName()] = $column->parseValue(\Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer));
-                }
-                
-                $this->emit('data', array($row));
-            } else {
-                $original = $buffer;
-                $fieldCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
-                
-                if($this->fieldsCount === null) {
-                    if($fieldCount === 0xFB) {
-                        // Handle it on future tick, so we can cleanly finish the buffer of this call
-                        $this->driver->getLoop()->futureTick(function () use (&$parser) {
-                            $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileDataMessage();
-                            $parser->handleMessage($localMsg);
-                        });
-                        
-                        return;
-                    }
-                    
-                    $this->fieldsCount = $fieldCount;
-                    
-                    if(\strlen($buffer) === 0) {
-                        return;
-                    }
-                } else {
-                    $buffer = $original;
-                    $original = null;
-                }
-                
-                $this->fields[$field->getName()] = static::parseColumnDefinition($buffer, $parser);
-                
-                if(\count($this->fields) >= $this->fieldsCount) {
-                    $this->createResolve();
-                }
-            }
+            $this->handleQueryOnNextCaller($value);
         } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $message instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
             if($this->resolveValue !== null) {
-                $parser->markCommandAsFinished($this);
+                $message->getParser()->markCommandAsFinished($this);
             } elseif(empty($this->fields) && $message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
-                $this->resolveValue = new \Plasma\Drivers\MySQL\QueryResult($message->affectedRows, $message->warningsCount, $message->lastInsertedID);
-                $parser->markCommandAsFinished($this);
+                $this->resolveValue = new \Plasma\QueryResult($message->affectedRows, $message->warningsCount, $message->lastInsertedID);
+                $message->getParser()->markCommandAsFinished($this);
             } else {
                 $this->createResolve();
             }

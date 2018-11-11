@@ -109,14 +109,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     protected $messageClasses = array();
     
     /**
-     * @var \Plasma\Drivers\MySQL\Commands\CommandInterface|null
-     */
-    protected $currentCommand;
-    
-    /**
      * @var \Plasma\Drivers\MySQL\Messages\HandshakeMessage|null
      */
     protected $handshakeMessage;
+    
+    /**
+     * @var \Plasma\CommandInterface|null
+     */
+    protected $currentCommand;
     
     /**
      * Constructor.
@@ -132,11 +132,19 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
+     * Get the currently executing command.
+     * @return \Plasma\CommandInterface|null
+     */
+    function getCurrentCommand(): ?\Plasma\CommandInterface {
+        return $this->currentCommand;
+    }
+    
+    /**
      * Invoke a command to execute.
-     * @param \Plasma\Drivers\MySQL\Commands\CommandInterface  $command
+     * @param \Plasma\CommandInterface|null  $command
      * @return void
      */
-    function invokeCommand(?\Plasma\Drivers\MySQL\Commands\CommandInterface $command): void {
+    function invokeCommand(?\Plasma\CommandInterface $command): void {
         if($command === null) {
             return;
         }
@@ -146,15 +154,26 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
+     * Executes a command, without handling any aftermath.
+     * The `onComplete` callback will be immediately invoked, regardless of the `waitForCompletion` value.
+     * @param \Plasma\CommandInterface  $command
+     * @return void
+     */
+    function executeCommand(\Plasma\CommandInterface $command): void {
+        $this->processCommand($command);
+    }
+    
+    /**
      * Marks the command itself as finished, if currently running.
      * @param \Plasma\Drivers\MySQL\Commands\CommandInterface  $command
      * @return void
      */
-    function markCommandAsFinished(\Plasma\Drivers\MySQL\Commands\CommandInterface $command): void {
+    function markCommandAsFinished(\Plasma\CommandInterface $command): void {
         if($command === $this->currentCommand) {
             $this->currentCommand = null;
-            $command->onComplete();
         }
+        
+        $command->onComplete();
     }
     
     /**
@@ -174,24 +193,51 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
-     * Processes a command.
+     * Sends a packet to the server.
      * @return void
      */
-    protected function processCommand() {
-        if(!$this->currentCommand) {
+    function sendPacket(string $packet): void {
+        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt3(\strlen($packet));
+        $sequence = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt1((++$this->sequenceID));
+        
+        $this->connection->write($length.$sequence.$packet);
+    }
+    
+    /**
+     * Unshifts a command.
+     * @return void
+     */
+    protected function unshiftCommand() {
+        $this->invokeCommand($this->driver->getNextCommand());
+    }
+    
+    /**
+     * Processes a command.
+     * @param \Plasma\CommandInterface|null  $command
+     * @return void
+     */
+    protected function processCommand(?\Plasma\CommandInterface $command = null) {
+        if($command === null && $this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) {
+            $command = $this->currentCommand;
+            
+            $state = $command->setParserState();
+            if($state !== -1) {
+                $this->state = $state;
+            }
+        }
+        
+        if($command === null) {
             return;
         }
         
-        $state = $this->currentCommand->setParserState();
-        if($state !== -1) {
-            $this->state = $state;
-        }
+        $this->sendPacket($command->getEncodedMessage());
         
-        $packet = $this->currentCommand->getEncodedMessage();
-        $this->connection->write($packet);
-        
-        if(!$this->currentCommand->waitForCompletion()) {
-            $this->currentCommand = null;
+        if($command !== $this->currentCommand || !$command->waitForCompletion()) {
+            $command->onComplete();
+            
+            if($command === $this->currentCommand) {
+                $this->currentCommand = null;
+            }
         }
     }
     
@@ -200,18 +246,33 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     protected function processBuffer() {
+        $original = $this->buffer;
+        
+        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt3($this->buffer);
+        $sequence = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($this->buffer);
+        
+        if(\strlen($this->buffer) < $length) {
+            $this->buffer = $original;
+            return;
+        }
+        
+        $original = null;
+        if($this->state === static::STATE_OK) {
+            $this->sequenceID = $sequence;
+        }
+        
         $firstChar = \Plasma\Drivers\MySQL\Messages\MessageUtility::readBuffer($this->buffer, 1);
         
         /** @var \Plasma\Drivers\MySQL\Messages\MessageInterface  $message */
         $message = null;
         
         if($this->state === static::STATE_INIT) {
-            $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage();
+            $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
         } elseif($firstChar === "\xFE" && $this->state < static::STATE_OK) {
-            $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage();
-        } elseif(isset($this->messageClasses[$firstChar]) && ($firstChar !== \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() || \strlen($this->buffer) < 6)) {
+            $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
+        } elseif(isset($this->messageClasses[$firstChar]) && ($firstChar !== \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() || $length < 6)) {
             $cl = $this->messageClasses[$firstChar];
-            $message = new $cl();
+            $message = new $cl($this);
         } elseif($this->state === static::STATE_OK && $this->currentCommand !== null) {
             $this->buffer = $firstChar.$this->buffer;
             
@@ -256,7 +317,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     $this->currentCommand->onError($error);
                 } else {
                     $this->currentCommand->onNext($message);
+                    
+                    if($this->currentCommand->isFinished()) {
+                        $this->currentCommand->onComplete();
+                        $this->currentCommand = null;
+                    }
                 }
+            } else {
+                $this->unshiftCommand();
             }
             
             $this->emit('message', array($message));

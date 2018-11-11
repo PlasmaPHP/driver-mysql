@@ -32,6 +32,11 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     );
     
     /**
+     * @var \React\Filesystem\FilesystemInterface|null
+     */
+    protected static $filesystem;
+    
+    /**
      * Constructor.
      *
      * The driver supports the following options:
@@ -87,5 +92,22 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
      */
     static function getAuthPlugins(): array {
         return static::$authPlugins;
+    }
+    
+    /**
+     * Set the React Filesystem to use.
+     * @param \React\Filesystem\FilesystemInterface  $filesystem
+     * @return void
+     */
+    static function setFilesystem(\React\Filesystem\FilesystemInterface $filesystem): void {
+        static::$filesystem = $filesystem;
+    }
+    
+    /**
+     * Get the React Filesystem, or null. The filesystem must be set by the user, in order to not get `null`.
+     * @return \React\Filesystem\FilesystemInterface|null
+     */
+    static function getFilesystem(): ?\React\Filesystem\FilesystemInterface {
+        return static::$filesystem;
     }
 }

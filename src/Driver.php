@@ -54,7 +54,7 @@ class Driver implements \Plasma\DriverInterface {
     protected $parser;
     
     /**
-     * @var \SplQueue
+     * @var array
      */
     protected $queue;
     
@@ -79,7 +79,7 @@ class Driver implements \Plasma\DriverInterface {
         
         $this->connector = ($this->options['connector'] ?? (new \React\Socket\Connector($loop)));
         $this->encryption = new \React\Socket\StreamEncryption($this->loop, false);
-        $this->queue = new \SplQueue();
+        $this->queue = array();
     }
     
     /**
@@ -111,7 +111,7 @@ class Driver implements \Plasma\DriverInterface {
      * @return int
      */
     function getBacklogLength(): int {
-        return $this->queue->count();
+        return \count($this->queue);
     }
     
     /**
@@ -189,7 +189,7 @@ class Driver implements \Plasma\DriverInterface {
     function close(): \React\Promise\PromiseInterface {
         $this->goingAway = new \React\Promise\Deferred();
         
-        if($this->queue->count() === 0) {
+        if(\count($this->queue) === 0) {
             $this->goingAway->resolve();
         }
         
@@ -219,7 +219,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function quit(): void {
         /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
-        while($command = $this->queue->shift()) {
+        while($command = \array_shift($this->queue)) {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
         }
         
@@ -235,6 +235,80 @@ class Driver implements \Plasma\DriverInterface {
      */
     function isInTransaction(): bool {
         return $this->transaction;
+    }
+    
+    /**
+     * Executes a plain query. Resolves with a `QueryResultInterface` instance.
+     * When the command is done, the driver must check itself back into the client.
+     * @param \Plasma\ClientInterface  $client
+     * @param string                   $query
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     * @see \Plasma\QueryResultInterface
+     */
+    function query(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
+        $command = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
+        $this->executeCommand($command);
+        
+        $command->once('end', function () use (&$client) {
+            $client->checkinConnection($this);
+        });
+        
+        return $command->getPromise();
+    }
+    
+    /**
+     * Prepares a query. Resolves with a `StatementInterface` instance.
+     * When the command is done, the driver must check itself back into the client.
+     * @param \Plasma\ClientInterface  $client
+     * @param string                   $query
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     * @see \Plasma\StatementInterface
+     */
+    function prepare(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
+        $command = new \Plasma\Drivers\MySQL\Commands\PrepareCommand($client, $this, $query);
+        $this->executeCommand($command);
+        
+        return $command->getPromise();
+    }
+    
+    /**
+     * Prepares and executes a query. Resolves with a `QueryResultInterface` instance.
+     * This is equivalent to prepare -> execute -> close.
+     * If you need to execute a query multiple times, prepare the query manually for performance reasons.
+     * @param \Plasma\ClientInterface  $client
+     * @param string                   $query
+     * @param array                    $params
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     * @see \Plasma\StatementInterface
+     */
+    function execute(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
+        return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
+            return $statement->execute($params)->then(function (\Plasma\QueryResultInterface $result) use (&$statement) {
+                return $statement->close()->then(function () use ($result) {
+                    return $result;
+                });
+            }, function (\Throwable $error) use (&$statement) {
+                return $statement->close()->then(function () use ($error) {
+                    throw $error;
+                });
+            });
+        })->always(function () use (&$client) {
+            $client->checkinConnection($this);
+        });
+    }
+    
+    /**
+     * Quotes the string for use in the query.
+     * @param string  $str
+     * @return string
+     * @throws \LogicException  Thrown if the driver does not support quoting.
+     * @throws \Plasma\Exception
+     */
+    function quote(string $str): string { // TODO
+        throw new \LogicException('Not implemented yet');
     }
     
     /**
@@ -293,39 +367,6 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
-     * Executes a plain query. Resolves with a `QueryResultInterface` instance.
-     * @param string  $query
-     * @return \React\Promise\PromiseInterface
-     * @throws \Plasma\Exception
-     * @see \Plasma\QueryResultInterface
-     */
-    function query(string $query): \React\Promise\PromiseInterface {
-        
-    }
-    
-    /**
-     * Prepares a query. Resolves with a `StatementInterface` instance.
-     * @param string  $query
-     * @return \React\Promise\PromiseInterface
-     * @throws \Plasma\Exception
-     * @see \Plasma\StatementInterface
-     */
-    function prepare(string $query): \React\Promise\PromiseInterface {
-        
-    }
-    
-    /**
-     * Quotes the string for use in the query.
-     * @param string  $str
-     * @return string
-     * @throws \LogicException  Thrown if the driver does not support quoting.
-     * @throws \Plasma\Exception
-     */
-    function quote(string $str): string {
-        
-    }
-    
-    /**
      * Enables TLS on the connection.
      * @return \React\Promise\PromiseInterface
      */
@@ -342,11 +383,24 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Executes a command.
+     * @param \Plasma\Drivers\MySQL\Commands\CommandInterface  $command
+     * @return void
+     */
+    function executeCommand(\Plasma\Drivers\MySQL\Commands\CommandInterface $command): void {
+        $this->queue[] = $command;
+        
+        if($this->parser->getCurrentCommand() === null) {
+            $this->parser->invokeCommand($this->getNextCommand());
+        }
+    }
+    
+    /**
      * Get the next command, or null.
      * @return \Plasma\Drivers\MySQL\Commands\CommandInterface|null
      */
     function getNextCommand(): ?\Plasma\Drivers\MySQL\Commands\CommandInterface {
-        if($this->queue->count() === 0) {
+        if(\count($this->queue) === 0) {
             if($this->goingAway) {
                 $this->goingAway->resolve();
             }
@@ -355,7 +409,7 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
-        $command =  $this->queue->dequeue();
+        $command =  \array_shift($this->queue);
         
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;

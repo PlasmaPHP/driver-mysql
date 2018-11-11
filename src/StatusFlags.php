@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL;
 
 /**
  * The MySQL Status Flags.
- * @internal
  */
 class StatusFlags {
     /**

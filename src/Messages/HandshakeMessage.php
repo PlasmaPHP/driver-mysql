@@ -64,6 +64,19 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     public $authPluginName;
     
     /**
+     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     */
+    protected $parser;
+    
+    /**
+     * Constructor.
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     */
+    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+        $this->parser = $parser;
+    }
+    
+    /**
      * Get the identifier for the packet.
      * @return string
      */
@@ -74,20 +87,16 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string                                $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param string  $buffer
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function parseMessage(string $buffer) {
         $protocol = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
         
         switch($protocol) {
             case 0x0A:
                 return $this->parseProtocol10($buffer);
-            break;
-            case 0x09:
-                return $this->parseProtocol9($buffer);
             break;
             default:
                 $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('Unsupported protocol version');
@@ -97,6 +106,14 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 throw $exception;
             break;
         }
+    }
+    
+    /**
+     * Get the parser which created this message.
+     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     */
+    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+        return $this->parser;
     }
     
     /**

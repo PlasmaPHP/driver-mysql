@@ -58,6 +58,19 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     public $info;
     
     /**
+     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     */
+    protected $parser;
+    
+    /**
+     * Constructor.
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     */
+    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+        $this->parser = $parser;
+    }
+    
+    /**
      * Get the identifier for the packet.
      * @return string
      */
@@ -68,12 +81,11 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string                                $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param string  $buffer
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function parseMessage(string $buffer) {
         $nameLength = \strpos($buffer, "\x00");
         if($nameLength === false) {
             return false;
@@ -82,7 +94,7 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
         $affectedRows = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
         $lastInsertedID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
         
-        $handshake = $parser->getHandshakeMessage();
+        $handshake = $this->parser->getHandshakeMessage();
         if(!$handshake) {
             throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
         }
@@ -117,6 +129,14 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
         $this->info = $info;
         
         return $buffer;
+    }
+    
+    /**
+     * Get the parser which created this message.
+     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     */
+    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+        return $this->parser;
     }
     
     /**

@@ -15,6 +15,12 @@ namespace Plasma\Drivers\MySQL\Messages;
  */
 interface MessageInterface {
     /**
+     * Constructor.
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     */
+    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser);
+    
+    /**
      * Get the identifier for the packet.
      * @return string
      */
@@ -23,12 +29,17 @@ interface MessageInterface {
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string                                $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param string  $buffer
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser);
+    function parseMessage(string $buffer);
+    
+    /**
+     * Get the parser which created this message.
+     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     */
+    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser;
     
     /**
      * Sets the parser state, if necessary. If not, return `-1`.

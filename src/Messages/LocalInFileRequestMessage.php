@@ -10,15 +10,10 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents a Auth More Data Message.
+ * Represents a Local In File Data Message.
  * @internal
  */
-class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
-    /**
-     * @var string|null
-     */
-    public $authPluginData;
-    
+class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
      */
@@ -37,19 +32,32 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
      * @return string
      */
     static function getID(): string {
-        return "\x01";
+        return "\xFB";
     }
     
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
      * @param string  $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
      * @return string|bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function parseMessage(string $buffer) {
-        $this->authPluginData = $buffer;
+        $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
+        
+        if($filesystem !== null) {
+            $filesystem->file($buffer)->getContents()->otherwise(function () {
+                return '';
+            })->then(function (string $content) {
+                $this->sendFile($content);
+            });
+        } else {
+            if(\file_exists($buffer)) {
+                $this->sendFile(\file_get_contents($buffer));
+            } else {
+                $this->sendFile('');
+            }
+        }
         
         return '';
     }
@@ -67,6 +75,24 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH;
+        return -1;
+    }
+    
+    /**
+     * Sends the contents to the server.
+     * @param string $contents
+     */
+    protected function sendFile(string $content) {
+        $maxSize = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
+        
+        for($size = \strlen($content); $size > 0; $size -= $maxSize) {
+            $partial = \substr($content, 0, $maxSize);
+            $content = \substr($content, $maxSize);
+            
+            $this->parser->sendPacket($partial);
+            $partial = '';
+        }
+        
+        $this->parser->sendPacket('');
     }
 }

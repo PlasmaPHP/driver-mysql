@@ -117,6 +117,62 @@ abstract class PromiseCommand implements CommandInterface {
     }
     
     /**
+     * Handles query commands on next caller.
+     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
+     * @return void
+     */
+    function handleQueryOnNextCaller(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): void {
+        $parser = $value->getParser();
+        $buffer = $value->getBuffer();
+        
+        if($this->resolveValue !== null) {
+            $this->emit('data', array($this->parseResultsetRow($buffer)));
+        } else {
+            $this->fields[$field->getName()] = $this->handleQueryOnNextCallerColumns($value);
+            
+            if(\count($this->fields) >= $this->fieldsCount) {
+                $this->createResolve();
+            }
+        }
+    }
+    
+    /**
+     * Handles the column definitions of query commands on next caller.
+     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
+     * @return \Plasma\ColumnDefinitionInterface
+     */
+    function handleQueryOnNextCallerColumns(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): \Plasma\ColumnDefinitionInterface {
+        $parser = $value->getParser();
+        $buffer = $value->getBuffer();
+        
+        $original = $buffer;
+        $fieldCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
+        
+        if($this->fieldsCount === null) {
+            if($fieldCount === 0xFB) {
+                // Handle it on future tick, so we can cleanly finish the buffer of this call
+                $this->driver->getLoop()->futureTick(function () use (&$parser) {
+                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileDataMessage();
+                    $parser->handleMessage($localMsg);
+                });
+                
+                return;
+            }
+            
+            $this->fieldsCount = $fieldCount;
+            
+            if(\strlen($buffer) === 0) {
+                return;
+            }
+        } else {
+            $buffer = $original;
+            $original = null;
+        }
+        
+        return static::parseColumnDefinition($buffer, $parser);
+    }
+    
+    /**
      * Parses the column definition.
      * @param string                                $buffer
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
@@ -145,8 +201,73 @@ abstract class PromiseCommand implements CommandInterface {
         }*/
         
         $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset];
+        $type = $type;
         $nullable = ($flags & \Plasma\Drivers\MySQL\FieldFlags::NOT_NULL_FLAG) === 0;
         
         return (new \Plasma\ColumnDefinition($database, $table, $name, $type, $charset, $length, $nullable, $flags, $decimals));
+    }
+    
+    /**
+     * Parses the text resultset row and returns the row.
+     * @param \Plasma\ColumnDefinitionInterface  $column
+     * @param string                             $buffer
+     * @return array
+     */
+    protected function parseResultsetRow(string &$buffer): array {
+        $row = array();
+        
+        /** @var \Plasma\ColumnDefinitionInterface  $column */
+        foreach($this->fields as $column) {
+            $rawValue = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
+            
+            try {
+                $value = $column->parseValue($rawValue);
+            } catch (\Plasma\Exception $e) {
+                $value = $this->stdDecodeValue($rawValue);
+            }
+            
+            $row[$column->getName()] = $value;
+        }
+        
+        return $row;
+    }
+    
+    /**
+     * Standard decode value, if type extensions failed.
+     * @param \Plasma\ColumnDefinitionInterface  $column
+     * @param string                             $param
+     * @return mixed
+     * @throws \Plasma\Exception
+     */
+    protected function stdDecodeValue(\Plasma\ColumnDefinitionInterface $column, string $param) {
+        $flags = $column->getFlags();
+        
+        if($param !== null && ($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) === 0) {
+            switch($column->getType()) {
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG:
+                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 || \PHP_INT_SIZE > 4) {
+                        $param = (int) $param;
+                    }
+                break;
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG:
+                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 && \PHP_INT_SIZE > 4) {
+                        $param = (int) $param;
+                    }
+                break;
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY:
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT:
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_INT24:
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP:
+                    $param = (int) $param;
+                break;
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_FLOAT:
+                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE:
+                    $param = (float) $param;
+                break;
+                // Other types are taken as string
+            }
+        }
+        
+        return $param;
     }
 }

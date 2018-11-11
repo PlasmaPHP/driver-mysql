@@ -17,6 +17,13 @@ class QuitCommand implements CommandInterface {
     use \Evenement\EventEmitterTrait;
     
     /**
+     * The identifier for this command.
+     * @var int
+     * @source
+     */
+    const COMMAND_ID = 0x01;
+    
+    /**
      * @var bool
      */
     protected $finished = false;
@@ -27,7 +34,7 @@ class QuitCommand implements CommandInterface {
      */
     function getEncodedMessage(): string {
         $this->finished = true;
-        return \chr(\Plasma\Drivers\MySQL\CommandConstants::CMD_QUIT);
+        return \chr(static::COMMAND_ID);
     }
     
     /**

@@ -130,7 +130,7 @@ class MessageUtility {
      * @param int $int
      * @return string
      */
-    static function buildInt1(int $int): string {
+    static function writeInt1(int $int): string {
         return \chr($int);
     }
     
@@ -138,7 +138,7 @@ class MessageUtility {
      * @param int $int
      * @return string
      */
-    static function buildInt2(int $int): string {
+    static function writeInt2(int $int): string {
         return \pack('v', $int);
     }
     
@@ -146,15 +146,23 @@ class MessageUtility {
      * @param int $int
      * @return string
      */
-    static function buildInt3(int $int): string {
+    static function writeInt3(int $int): string {
         return \substr(\pack('V', $int), 0, 3);
+    }
+    
+    /**
+     * @param int $int
+     * @return string
+     */
+    static function writeInt4(int $int): string {
+        return \pack('V', $int);
     }
     
     /**
      * @param string|int $int
      * @return string
      */
-    static function buildInt8($int): string {
+    static function writeInt8($int): string {
         if(\PHP_INT_SIZE > 4) {
             return \pack('P', ((int) $int));
         }
@@ -171,11 +179,19 @@ class MessageUtility {
     }
     
     /**
+     * @param float  $float
+     * @return string
+     */
+    static function writeFloat(float $float): string {
+        return \pack('e', $float);
+    }
+    
+    /**
      * Builds length-encoded binary string.
      * @param string|null $s
      * @return string
      */
-    static function buildStringLength(?string $s): string {
+    static function writeStringLength(?string $s): string {
         if($s === NULL) {
             // \xFB (251)
             return "\xFB";
@@ -183,18 +199,18 @@ class MessageUtility {
         
         $l = \strlen($s);
         if($l <= 250) {
-            return static::buildInt1($l).$s;
+            return static::writeInt1($l).$s;
         }
         
         if($l <= 0xFFFF) { // max 2^16: \xFC (252)
-            return "\xFC".static::buildInt2($l).$s;
+            return "\xFC".static::writeInt2($l).$s;
         }
         
         if($l <= 0xFFFFFF) { // max 2^24: \xFD (253)
-            return "\xFD".static::buildInt3($l).$s;
+            return "\xFD".static::writeInt3($l).$s;
         }
         
-        return "\xFE".static::buildInt8($l).$s; // max 2^64: \xFE (254)
+        return "\xFE".static::writeInt8($l).$s; // max 2^64: \xFE (254)
     }
     
     /**

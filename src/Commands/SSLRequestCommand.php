@@ -104,6 +104,6 @@ class SSLRequestCommand implements CommandInterface {
      * @return bool
      */
     function waitForCompletion(): bool {
-        return true;
+        return false;
     }
 }

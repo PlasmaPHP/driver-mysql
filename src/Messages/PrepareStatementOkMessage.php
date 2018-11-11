@@ -10,33 +10,33 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents an Err Response Message.
+ * Represents a Prepare Statement Ok Message.
  * @internal
  */
-class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
-     * Error code.
+     * The statement ID.
      * @var int
      */
-    public $errorCode;
+    public $statementID;
     
     /**
-     * SQL State marker, if any.
-     * @var string|null
+     * Count of columns.
+     * @var int
      */
-    public $sqlStateMarker;
+    public $numColumns;
     
     /**
-     * SQL State, if any.
-     * @var string|null
+     * Count of parameters.
+     * @var int
      */
-    public $sqlState;
+    public $numParams;
     
     /**
-     * Error message.
-     * @var string
+     * Count of warnings.
+     * @var int
      */
-    public $errorMessage;
+    public $warningsCount;
     
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
@@ -56,7 +56,7 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
      * @return string
      */
     static function getID(): string {
-        return "\xFF";
+        return "\x0C";
     }
     
     /**
@@ -67,27 +67,26 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function parseMessage(string $buffer) {
-        $nameLength = \strpos($buffer, "\x00");
-        if($nameLength === false) {
+        if(\strlen($buffer) < 12) {
             return false;
         }
         
-        $this->errorCode = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $buffer = \substr($buffer, 1); // Status OK
         
-        $handshake = $this->parser->getHandshakeMessage();
-        if(!$handshake || $this->parser->getState() == \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE) {
-            $exception = new \Plasma\Drivers\MySQL\Messages\ParseException($buffer, $this->errorCode);
-            $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
-            $exception->setBuffer('');
-            
-            throw $exception;
-        }
+        $statementID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
+        $numColumns = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $numParams = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
         
-        $this->sqlStateMarker = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 1);
-        $this->sqlState = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 5);
-        $this->errorMessage = $buffer;
+        $buffer = \substr($buffer, 1); // Filler
         
-        return '';
+        $warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        
+        $this->statementID = $statementID;
+        $this->numColumns = $numColumns;
+        $this->numParams = $numParams;
+        $this->warningsCount = $warningsCount;
+        
+        return $buffer;
     }
     
     /**

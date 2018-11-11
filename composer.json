@@ -19,6 +19,9 @@
         "react/socket": "^1.1",
         "react/stream": "^1.0"
     },
+    "require-dev": {
+        "react/filesystem": "^0.1.2"
+    },
     "autoload": {
         "psr-4": {
             "Plasma\\Drivers\\MySQL\\": "src"

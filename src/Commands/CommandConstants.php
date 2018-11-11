@@ -62,22 +62,22 @@ class CommandConstants {
     /**
      * mysql_list_processes
      */
-    const CMD_PROCESS_INFO = 0x0a;
+    const CMD_PROCESS_INFO = 0x0A;
     
     /**
      * mysql_kill
      */
-    const CMD_PROCESS_KILL = 0x0c;
+    const CMD_PROCESS_KILL = 0x0C;
     
     /**
      * mysql_dump_debug_info
      */
-    const CMD_DEBUG = 0x0d;
+    const CMD_DEBUG = 0x0D;
     
     /**
      * mysql_ping
      */
-    const CMD_PING = 0x0e;
+    const CMD_PING = 0x0E;
     
     /**
      * mysql_change_user
@@ -122,15 +122,15 @@ class CommandConstants {
     /**
      * mysql_stmt_reset
      */
-    const STMT_RESET = 0x1a;
+    const STMT_RESET = 0x1A;
     
     /**
      * mysql_set_server_option
      */
-    const SET_OPTION = 0x1b;
+    const SET_OPTION = 0x1B;
     
     /**
      * mysql_stmt_fetch
      */
-    const STMT_FETCH = 0x1c;
+    const STMT_FETCH = 0x1C;
 }

@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL;
 
 /**
  * The MySQL Capability Flags.
- * @internal
  */
 class CapabilityFlags {
     /**
