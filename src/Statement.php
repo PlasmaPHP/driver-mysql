@@ -10,7 +10,7 @@
 namespace Plasma\Drivers\MySQL;
 
 /**
- * The MySQL Capability Flags.
+ * Represents a Prepared Statement.
  */
 class Statement implements \Plasma\StatementInterface {
     /**

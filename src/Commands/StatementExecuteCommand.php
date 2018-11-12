@@ -53,7 +53,7 @@ class StatementExecuteCommand extends QueryCommand {
         $packet = \chr(static::COMMAND_ID);
         $packet .= \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt4($this->id);
         
-        $packet .= \chr(0); // Cursor type flag
+        $packet .= "\0"; // Cursor type flag
         $packet .= \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt4(1); // Iteration count is always 1
         
         $paramCount = \count($this->params);
@@ -171,6 +171,9 @@ class StatementExecuteCommand extends QueryCommand {
                 if($param >= 0 && $param < (1 << 15)) {
                     $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT;
                     $value = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt2($param);
+                } elseif(\PHP_INT_SIZE === 4) {
+                    $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG;
+                    $value = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt4($param);
                 } else {
                     $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG;
                     $value = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt8($param);

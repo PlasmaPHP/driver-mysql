@@ -152,7 +152,7 @@ abstract class PromiseCommand implements CommandInterface {
             if($fieldCount === 0xFB) {
                 // Handle it on future tick, so we can cleanly finish the buffer of this call
                 $this->driver->getLoop()->futureTick(function () use (&$parser) {
-                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileDataMessage();
+                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage();
                     $parser->handleMessage($localMsg);
                 });
                 
@@ -221,7 +221,9 @@ abstract class PromiseCommand implements CommandInterface {
             $rawValue = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
             
             try {
-                $value = $column->parseValue($rawValue);
+                $value = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                    ->decodeType($column->getType(), $rawValue)
+                    ->getValue();
             } catch (\Plasma\Exception $e) {
                 $value = $this->stdDecodeValue($rawValue);
             }

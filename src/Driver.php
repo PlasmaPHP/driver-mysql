@@ -119,8 +119,8 @@ class Driver implements \Plasma\DriverInterface {
      * @return \React\Promise\PromiseInterface
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
-        $parts = \parse_url('mysql://' . $uri);
-        if(!isset($parts['scheme']) || !isset($parts['host'])) {
+        $parts = \parse_url($uri);
+        if(!isset($parts['host'])) {
             return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));
         }
         
@@ -364,6 +364,29 @@ class Driver implements \Plasma\DriverInterface {
      */
     function endTransaction(): void {
         $this->transaction = false;
+    }
+    
+    /**
+     * Runs the given command.
+     * Returns a Promise, which resolves with the `end` event argument (defaults to `null),
+     * or rejects with the `Throwable` of the `error` event.
+     * When the command is done, the driver must check itself back into the client.
+     * @param \Plasma\ClientInterface   $client
+     * @param \Plasma\CommandInterface  $command
+     * @return \React\Promise\PromiseInterface
+     */
+    function runCommand(\Plasma\ClientInterface $client, \Plasma\CommandInterface $command) {
+        return (new \React\Promise\Promise(function (callable $resolve, callable $reject) use (&$client, &$command) {
+            $command->once('end', function ($value = null) use (&$client, &$resolve) {
+                $client->checkinConnection($this);
+                $resolve($value);
+            });
+            
+            $command->once('error', function (\Throwable $error) use (&$client, &$reject) {
+                $client->checkinConnection($this);
+                $reject($error);
+            });
+        }));
     }
     
     /**

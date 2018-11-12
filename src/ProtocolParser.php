@@ -314,7 +314,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     $this->currentCommand = null;
                 } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
                     $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
-                    $this->currentCommand->onError($error);
+                    
+                    if(!$this->currentCommand->isFinished()) {
+                        $this->currentCommand->onError($error);
+                    } else {
+                        $this->emit('error', array($error));
+                    }
                 } else {
                     $this->currentCommand->onNext($message);
                     
