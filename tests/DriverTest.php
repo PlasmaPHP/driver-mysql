@@ -66,7 +66,7 @@ class DriverTest extends TestCase {
         $client = $this->createClientMock();
         
         $client
-            ->expects($this->once())
+            ->expects($this->any())
             ->method('checkinConnection')
             ->with($driver);
         
