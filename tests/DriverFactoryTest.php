@@ -61,12 +61,12 @@ class DriverFactoryTest extends TestCase {
         $plugs2 = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertTrue(isset($plugs2[__FUNCTION__]));
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(\InvalidArgumentException::class);
         \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \get_class($this->getAuthPlugin()));
     }
     
     function testAddAuthPluginInterface() {
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(\InvalidArgumentException::class);
         \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \stdClass::class);
     }
     
