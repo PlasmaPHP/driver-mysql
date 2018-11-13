@@ -46,7 +46,7 @@ class DriverFactoryTest extends TestCase {
         $plugs = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertFalse(isset($plugs[__FUNCTION__]));
         
-        $this->assertNull(\Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin));
+        $this->assertNull(\Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin()));
         
         $plugs2 = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertTrue(isset($plugs2[__FUNCTION__]));
@@ -56,13 +56,13 @@ class DriverFactoryTest extends TestCase {
         $plugs = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertFalse(isset($plugs[__FUNCTION__]));
         
-        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin);
+        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin());
         
         $plugs2 = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertTrue(isset($plugs2[__FUNCTION__]));
         
         $this->expectException(\Plasma\Exception::class);
-        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin);
+        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin());
     }
     
     function testAddAuthPluginInterface() {
