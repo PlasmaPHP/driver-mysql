@@ -63,8 +63,15 @@ class DriverTest extends TestCase {
         $state = $driver->getBacklogLength();
         $this->assertSame(0, $state);
         
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
-        $driver->runCommand($ping);
+        $driver->runCommand($client, $ping);
         
         $state = $driver->getBacklogLength();
         $this->assertSame(1, $state);
@@ -167,8 +174,15 @@ class DriverTest extends TestCase {
         $prom = $this->connect($driver, '127.0.0.1');
         $this->await($prom);
         
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
-        $promC = $driver->runCommand($ping);
+        $promC = $driver->runCommand($client, $ping);
         
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
         $this->await($promC);
@@ -192,8 +206,15 @@ class DriverTest extends TestCase {
         $prom = $this->connect($driver, '127.0.0.1');
         $this->await($prom);
         
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
-        $promC = $driver->runCommand($ping);
+        $promC = $driver->runCommand($client, $ping);
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
         
         $prom2 = $this->quit($driver->close());
@@ -247,8 +268,15 @@ class DriverTest extends TestCase {
         $prom = $this->connect($driver, 'localhost');
         $this->await($prom);
         
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->exactly(2))
+            ->method('checkinConnection')
+            ->with($driver);
+        
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
-        $promC = $driver->runCommand($ping);
+        $promC = $driver->runCommand($client, $ping);
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
         
         $this->await($promC);
@@ -260,7 +288,7 @@ class DriverTest extends TestCase {
             }
         });
         
-        $promC2 = $driver->runCommand($ping2);
+        $promC2 = $driver->runCommand($client, $ping2);
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC2);
         
         $this->expectException(\LogicException::class);

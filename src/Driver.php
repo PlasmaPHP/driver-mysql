@@ -126,6 +126,8 @@ class Driver implements \Plasma\DriverInterface {
      * @return \React\Promise\PromiseInterface
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
+        $uri = 'mysql://'.ltrim($uri, 'mysql://');
+        
         $parts = \parse_url($uri);
         if(!isset($parts['host'])) {
             return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));

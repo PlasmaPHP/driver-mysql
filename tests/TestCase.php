@@ -19,7 +19,7 @@ class TestCase extends \PHPUnit\Framework\TestCase {
         $this->loop = \React\EventLoop\Factory::create();
     }
     
-    function await(\React\Promise\PromiseInterface $promise, float $timeout = 10.0) {
+    function await(\React\Promise\PromiseInterface $promise, float $timeout = 30.0) {
         return \Clue\React\Block\await($promise, $this->loop, $timeout);
     }
 }
