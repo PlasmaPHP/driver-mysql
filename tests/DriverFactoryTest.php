@@ -71,7 +71,15 @@ class DriverFactoryTest extends TestCase {
     }
     
     function getAuthPlugin() {
-        return (new class() implements \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface {
+        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        
+        $handshake = $this->getMockBuilder(\Plasma\Drivers\MySQL\Messages\HandshakeMessage::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        
+        return (new class($parser, $handshake) implements \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface {
             function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake) {}
             function getHandshakeAuth(string $password): string {}
             function receiveMoreData(\Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage $message): \Plasma\Drivers\MySQL\Commands\CommandInterface {}
