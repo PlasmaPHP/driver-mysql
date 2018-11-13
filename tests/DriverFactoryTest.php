@@ -46,7 +46,7 @@ class DriverFactoryTest extends TestCase {
         $plugs = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertFalse(isset($plugs[__FUNCTION__]));
         
-        $this->assertNull(\Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin()));
+        $this->assertNull(\Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \get_class($this->getAuthPlugin())));
         
         $plugs2 = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertTrue(isset($plugs2[__FUNCTION__]));
@@ -56,33 +56,28 @@ class DriverFactoryTest extends TestCase {
         $plugs = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertFalse(isset($plugs[__FUNCTION__]));
         
-        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin());
+        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \get_class($this->getAuthPlugin()));
         
         $plugs2 = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
         $this->assertTrue(isset($plugs2[__FUNCTION__]));
         
         $this->expectException(\Plasma\Exception::class);
-        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, $this->getAuthPlugin());
+        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \get_class($this->getAuthPlugin()));
     }
     
     function testAddAuthPluginInterface() {
         $this->expectException(\Plasma\Exception::class);
-        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, (new \stdClass()));
+        \Plasma\Drivers\MySQL\DriverFactory::addAuthPlugin(__FUNCTION__, \stdClass::class);
     }
     
     function getAuthPlugin() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        return $this->getMockBuilder(\Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface::class)
             ->disableOriginalConstructor()
+            ->setMethods(array(
+                '__construct',
+                'getHandshakeAuth',
+                'receiveMoredata'
+            ))
             ->getMock();
-        
-        $handshake = $this->getMockBuilder(\Plasma\Drivers\MySQL\Messages\HandshakeMessage::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        
-        return (new class($parser, $handshake) implements \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface {
-            function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake) {}
-            function getHandshakeAuth(string $password): string {}
-            function receiveMoreData(\Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage $message): \Plasma\Drivers\MySQL\Commands\CommandInterface {}
-        });
     }
 }
