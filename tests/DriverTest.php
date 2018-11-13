@@ -26,7 +26,7 @@ class DriverTest extends TestCase {
     }
     
     function connect(\Plasma\DriverInterface $driver, string $uri): \React\Promise\PromiseInterface {
-        $creds = (getenv('MDB_USER') ? getenv('MDB_USER').':'.getenv('MDB_PASSWORD').'@' : '');
+        $creds = (getenv('MDB_USER') ? getenv('MDB_USER').':'.getenv('MDB_PASSWORD').'@' : 'root:@');
         
         return $driver->connect($creds.$uri);
     }
