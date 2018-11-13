@@ -298,12 +298,19 @@ class DriverTest extends TestCase {
     function createClientMock(): \Plasma\ClientInterface {
         return $this->getMockBuilder(\Plasma\ClientInterface::class)
             ->setMethods(array(
+                'create',
                 'getConnectionCount',
-                'beginTransaction',
                 'checkinConnection',
+                'beginTransaction',
                 'close',
                 'quit',
-                'runCommand'
+                'runCommand',
+                'listeners',
+                'on',
+                'once',
+                'emit',
+                'removeListener',
+                'removeAllListeners'
             ))
             ->getMock();
     }
