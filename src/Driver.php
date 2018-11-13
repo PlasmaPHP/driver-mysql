@@ -24,7 +24,14 @@ class Driver implements \Plasma\DriverInterface {
     /**
      * @var array
      */
-    protected $options;
+    protected $options = array(
+        'tls.context' => array(),
+        'tls.force' => false,
+        'tls.ignoreIPs' => array(
+            'localhost',
+            '127.0.0.1'
+        )
+    );
     
     /**
      * @var \React\Socket\ConnectorInterface
@@ -46,7 +53,7 @@ class Driver implements \Plasma\DriverInterface {
     /**
      * @var int
      */
-    protected $connectionState = static::CONNECTION_CLOSED;
+    protected $connectionState = \Plasma\DriverInterface::CONNECTION_CLOSED;
     
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
@@ -61,7 +68,7 @@ class Driver implements \Plasma\DriverInterface {
     /**
      * @var int
      */
-    protected $busy = static::STATE_IDLE;
+    protected $busy = \Plasma\DriverInterface::STATE_IDLE;
     
     /**
      * @var bool
@@ -75,9 +82,9 @@ class Driver implements \Plasma\DriverInterface {
         $this->validateOptions($options);
         
         $this->loop = $loop;
-        $this->options = $options;
+        $this->options = \array_merge($this->options, $options);
         
-        $this->connector = ($this->options['connector'] ?? (new \React\Socket\Connector($loop)));
+        $this->connector = ($options['connector'] ?? (new \React\Socket\Connector($loop)));
         $this->encryption = new \React\Socket\StreamEncryption($this->loop, false);
         $this->queue = array();
     }
@@ -187,6 +194,10 @@ class Driver implements \Plasma\DriverInterface {
      * @return \React\Promise\PromiseInterface
      */
     function close(): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return $this->goingAway->promise();
+        }
+        
         $this->goingAway = new \React\Promise\Deferred();
         
         if(\count($this->queue) === 0) {
@@ -202,9 +213,8 @@ class Driver implements \Plasma\DriverInterface {
                 $deferred->resolve();
             });
             
-            $quit->once('end', function () use (&$deferred) {
-                $deferred->resolve();
-                $this->quit();
+            $quit->once('end', function () {
+                $this->connection->close();
             });
             
             $this->parser->invokeCommand($quit);
@@ -386,43 +396,29 @@ class Driver implements \Plasma\DriverInterface {
                 $client->checkinConnection($this);
                 $reject($error);
             });
+            
+            $this->executeCommand($command);
         }));
     }
     
     /**
-     * Enables TLS on the connection.
-     * @return \React\Promise\PromiseInterface
-     */
-    function enableTLS(): \React\Promise\PromiseInterface {
-        // Set required SSL/TLS context options
-        foreach(($this->options['tls.context'] ?? array()) as $name => $value) {
-            \stream_context_set_option($this->connection->stream, 'ssl', $name, $value);
-        }
-        
-        return $this->encryption->enable($this->connection)->otherwise(function (\Throwable $error) {
-            $this->connection->close();
-            throw new \RuntimeException('Connection failed during TLS handshake: '.$error->getMessage(), $error->getCode());
-        });
-    }
-    
-    /**
      * Executes a command.
-     * @param \Plasma\Drivers\MySQL\Commands\CommandInterface  $command
+     * @param \Plasma\CommandInterface  $command
      * @return void
      */
-    function executeCommand(\Plasma\Drivers\MySQL\Commands\CommandInterface $command): void {
+    function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
         
-        if($this->parser->getCurrentCommand() === null) {
+        if($this->parser && $this->parser->getCurrentCommand() === null) {
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
     
     /**
      * Get the next command, or null.
-     * @return \Plasma\Drivers\MySQL\Commands\CommandInterface|null
+     * @return \Plasma\CommandInterface|null
      */
-    function getNextCommand(): ?\Plasma\Drivers\MySQL\Commands\CommandInterface {
+    function getNextCommand(): ?\Plasma\CommandInterface {
         if(\count($this->queue) === 0) {
             if($this->goingAway) {
                 $this->goingAway->resolve();
@@ -431,7 +427,7 @@ class Driver implements \Plasma\DriverInterface {
             return null;
         }
         
-        /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
+        /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
         if($command->waitForCompletion()) {
@@ -440,6 +436,11 @@ class Driver implements \Plasma\DriverInterface {
         
         $command->once('end', function () {
             $this->busy = static::STATE_IDLE;
+            
+            if($this->goingAway && \count($this->queue) === 0) {
+                return $this->goingAway->resolve();
+            }
+            
             $this->parser->invokeCommand($this->getNextCommand());
         });
         
@@ -481,8 +482,11 @@ class Driver implements \Plasma\DriverInterface {
                     }
                 }
                 
+                $remote = $this->connection->getRemoteAddress();
+                $ignored = \in_array($remote, $this->options['tls.ignoreIPs']);
+                
                 // If SSL supported, connect through SSL
-                if(($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) {
+                if(!$ignored && ($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) {
                     $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
                     
                     $ssl = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($message, $clientFlags);
@@ -500,11 +504,10 @@ class Driver implements \Plasma\DriverInterface {
                     
                     return $this->parser->invokeCommand($ssl);
                 } else {
-                    $remote = $this->connection->getRemoteAddress();
                     $ipCheck = (\filter_var($remote, \FILTER_VALIDATE_IP) === false ||
                         \filter_var($remote, \FILTER_VALIDATE_IP, \FILTER_FLAG_NO_PRIV_RANGE) === false);
                     
-                    if($ipCheck && ($this->options['tls.force'] ?? false)) {
+                    if(!$ignored && $ipCheck && $this->options['tls.force']) {
                         $deferred->reject((new \Plasma\Exception('TLS is not supported by the server')));
                         $this->connection->close();
                         return;
@@ -523,6 +526,22 @@ class Driver implements \Plasma\DriverInterface {
             }
             
             $this->emit('eventRelay', array('message', $message));
+        });
+    }
+    
+    /**
+     * Enables TLS on the connection.
+     * @return \React\Promise\PromiseInterface
+     */
+    protected function enableTLS(): \React\Promise\PromiseInterface {
+        // Set required SSL/TLS context options
+        foreach($this->options['tls.context'] as $name => $value) {
+            \stream_context_set_option($this->connection->stream, 'ssl', $name, $value);
+        }
+        
+        return $this->encryption->enable($this->connection)->otherwise(function (\Throwable $error) {
+            $this->connection->close();
+            throw new \RuntimeException('Connection failed during TLS handshake: '.$error->getMessage(), $error->getCode());
         });
     }
     

@@ -88,7 +88,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     /**
      * @var int
      */
-    protected $state = static::STATE_INIT;
+    protected $state = ProtocolParser::STATE_INIT;
     
     /**
      * @var string
