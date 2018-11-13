@@ -22,7 +22,7 @@ class DriverTest extends TestCase {
     
     function setUp() {
         parent::setUp();
-        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop);
+        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array());
     }
     
     function connect(\Plasma\DriverInterface $driver, string $uri): \React\Promise\PromiseInterface {
