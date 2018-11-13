@@ -32,7 +32,7 @@ class DriverTest extends TestCase {
     }
     
     function testGetLoop() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $loop = $driver->getLoop();
@@ -41,7 +41,7 @@ class DriverTest extends TestCase {
     }
     
     function testGetConnectionState() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $state = $driver->getConnectionState();
@@ -49,7 +49,7 @@ class DriverTest extends TestCase {
     }
     
     function testGetBusyState() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $state = $driver->getBusyState();
@@ -57,7 +57,7 @@ class DriverTest extends TestCase {
     }
     
     function testGetBacklogLength() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $state = $driver->getBacklogLength();
@@ -71,7 +71,7 @@ class DriverTest extends TestCase {
     }
     
     function testConnect() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
@@ -82,7 +82,7 @@ class DriverTest extends TestCase {
     }
     
     function testConnectWithPort() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:3306');
@@ -93,7 +93,7 @@ class DriverTest extends TestCase {
     }
     
     function testConnectInvalidCredentials() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $driver->connect('root:abc-never@localhost');
@@ -105,7 +105,7 @@ class DriverTest extends TestCase {
     
     function testConnectForceTLS() {
         $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->create();
+        $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
@@ -118,7 +118,7 @@ class DriverTest extends TestCase {
     
     function testConnectForceTLSFailure() {
         $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->create();
+        $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
@@ -130,7 +130,7 @@ class DriverTest extends TestCase {
     
     function testConnectForceTLSPrivate() {
         $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->create();
+        $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
@@ -142,7 +142,7 @@ class DriverTest extends TestCase {
     
     function testConnectForceTLSPrivateIgnored() {
         $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->create();
+        $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, '127.0.0.1');
@@ -161,7 +161,7 @@ class DriverTest extends TestCase {
     }
     
     function testClose() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, '127.0.0.1');
@@ -180,7 +180,7 @@ class DriverTest extends TestCase {
     }
     
     function testQuit() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $deferred = new \React\Promise\Deferred();
@@ -209,7 +209,7 @@ class DriverTest extends TestCase {
     }
     
     function testTransaction() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
@@ -241,7 +241,7 @@ class DriverTest extends TestCase {
     }
     
     function testRunCommand() {
-        $driver = $this->factory->create();
+        $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
