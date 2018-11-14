@@ -124,7 +124,7 @@ class MessageUtility {
         }
         
         $str =  static::readBuffer($buffer, $pos);
-        static::readBuffer(1); // discard NULL byte
+        static::readBuffer($buffer, 1); // discard NULL byte
         
         return $str;
     }
