@@ -123,7 +123,10 @@ class MessageUtility {
             throw new \InvalidArgumentException('Missing NULL character');
         }
         
-        return static::readBuffer($buffer, $pos);
+        $str =  static::readBuffer($buffer, $pos);
+        static::readBuffer(1); // discard NULL byte
+        
+        return $str;
     }
     
     /**
