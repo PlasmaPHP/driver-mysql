@@ -1,0 +1,29 @@
+language: php
+
+dist: trusty
+sudo: required
+
+cache:
+  directories:
+    - $HOME/.composer/cache/files
+
+php:
+  - 7.1
+  - 7.2
+
+services:
+  - mysql
+
+env:
+  - DB=mysql
+  - DB=mariadb
+
+install:
+  - composer install -n
+
+before_script:
+  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-server && sudo apt-get install mariadb-10.3 fi"
+
+script:
+  - mysql -e 'CREATE DATABASE IF NOT EXISTS tests_tmp'
+  - ./vendor/bin/phpunit tests
