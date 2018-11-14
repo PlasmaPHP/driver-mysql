@@ -132,14 +132,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
-     * Get the currently executing command.
-     * @return \Plasma\CommandInterface|null
-     */
-    function getCurrentCommand(): ?\Plasma\CommandInterface {
-        return $this->currentCommand;
-    }
-    
-    /**
      * Invoke a command to execute.
      * @param \Plasma\CommandInterface|null  $command
      * @return void
@@ -204,25 +196,19 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
-     * Unshifts a command.
-     * @return void
-     */
-    protected function unshiftCommand() {
-        $this->invokeCommand($this->driver->getNextCommand());
-    }
-    
-    /**
      * Processes a command.
      * @param \Plasma\CommandInterface|null  $command
      * @return void
      */
     protected function processCommand(?\Plasma\CommandInterface $command = null) {
-        if($command === null && $this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) {
+        if($command === null && $this->currentCommand instanceof \Plasma\CommandInterface) {
             $command = $this->currentCommand;
             
-            $state = $command->setParserState();
-            if($state !== -1) {
-                $this->state = $state;
+            if($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) {
+                $state = $command->setParserState();
+                if($state !== -1) {
+                    $this->state = $state;
+                }
             }
         }
         
@@ -230,9 +216,16 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             return;
         }
         
+        if($command instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface && $command->resetSequence()) {
+            $this->sequenceID = -1;
+        }
+        
+        echo 'Processing command '.get_class($command).PHP_EOL;
+        
         $this->sendPacket($command->getEncodedMessage());
         
         if($command !== $this->currentCommand || !$command->waitForCompletion()) {
+            echo 'Mark command as completed'.PHP_EOL;
             $command->onComplete();
             
             if($command === $this->currentCommand) {
@@ -246,43 +239,59 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     protected function processBuffer() {
-        $original = $this->buffer;
+        $buffer = $this->buffer;
+        $bufferLen = \strlen($this->buffer);
         
-        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt3($this->buffer);
-        $sequence = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($this->buffer);
+        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt3($buffer);
+        $this->sequenceID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
         
-        if(\strlen($this->buffer) < $length) {
-            $this->buffer = $original;
+        if($bufferLen < $length) {
+            echo 'returned (insufficent length)'.PHP_EOL;
             return;
         }
         
-        $original = null;
-        if($this->state === static::STATE_OK) {
-            $this->sequenceID = $sequence;
+        if($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\PromiseCommand) {
+            var_dump(unpack('C*', $buffer));
         }
-        
-        $firstChar = \Plasma\Drivers\MySQL\Messages\MessageUtility::readBuffer($this->buffer, 1);
         
         /** @var \Plasma\Drivers\MySQL\Messages\MessageInterface  $message */
         $message = null;
         
         if($this->state === static::STATE_INIT) {
             $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
-        } elseif($firstChar === "\xFE" && $this->state < static::STATE_OK) {
-            $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
-        } elseif(isset($this->messageClasses[$firstChar]) && ($firstChar !== \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() || $length < 6)) {
-            $cl = $this->messageClasses[$firstChar];
-            $message = new $cl($this);
-        } elseif($this->state === static::STATE_OK && $this->currentCommand !== null) {
-            $this->buffer = $firstChar.$this->buffer;
+        } else {
+            $firstChar = \Plasma\Drivers\MySQL\Messages\MessageUtility::readBuffer($buffer, 1);
+            echo 'Received Message char "'.$firstChar.'" (0x'.dechex(ord($firstChar)).')'.PHP_EOL;
             
-            $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $this->buffer);
-            $message = $this->currentCommand->onNext($caller);
+            if($firstChar === "\xFE" && $this->state < static::STATE_OK) {
+                $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
+            } elseif(
+                isset($this->messageClasses[$firstChar]) &&
+                ($firstChar !== \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() || $length < 6) &&
+                ($firstChar !== \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID() || $this->state < static::STATE_OK)
+            ) {
+                $cl = $this->messageClasses[$firstChar];
+                $message = new $cl($this);
+            } elseif($this->state === static::STATE_OK && $this->currentCommand !== null) {
+                $buffer = $firstChar.$buffer;
+                
+                $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
+                $this->currentCommand->onNext($caller);
+            }
         }
         
         if(!($message instanceof \Plasma\Drivers\MySQL\Messages\MessageInterface)) {
+            echo 'returned (no message)'.PHP_EOL;
+            $this->buffer = $buffer;
+            
+            if(\strlen($this->buffer) > 0) {
+                $this->processBuffer();
+            }
+            
             return;
         }
+        
+        echo 'Received Message '.get_class($message).PHP_EOL;
         
         $state = $message->setParserState();
         if($state !== -1) {
@@ -293,43 +302,56 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->handshakeMessage = $message;
         }
         
-        $this->handleMessage($message);
+        $this->handleMessage($buffer, $message);
     }
     
     /**
      * Handles an incoming message.
+     * @param string                                           $buffer
      * @param \Plasma\Drivers\MySQL\Messages\MessageInterface  $message
      * @return void
      */
-    function handleMessage(\Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
+    function handleMessage(string &$buffer, \Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
         try {
-            $this->buffer = $message->parseMessage($this->buffer, $this);
+            $buffer = $message->parseMessage($buffer, $this);
+            if($buffer === false) {
+                echo 'returned handle (unsufficent buffer length)'.PHP_EOL;
+                return;
+            }
+            
+            $this->buffer = $buffer;
             
             if($this->currentCommand !== null) {
                 if(
                     ($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $message instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage)
-                    && $this->currentCommand->isFinished()
+                    && $this->currentCommand->hasFinished()
                 ) {
-                    $this->currentCommand->onComplete();
+                    $command = $this->currentCommand;
                     $this->currentCommand = null;
+                    
+                    $command->onComplete();
                 } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
                     $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
                     
-                    if(!$this->currentCommand->isFinished()) {
-                        $this->currentCommand->onError($error);
-                    } else {
-                        $this->emit('error', array($error));
-                    }
-                } else {
-                    $this->currentCommand->onNext($message);
+                    $command = $this->currentCommand;
+                    $this->currentCommand = null;
                     
-                    if($this->currentCommand->isFinished()) {
-                        $this->currentCommand->onComplete();
-                        $this->currentCommand = null;
+                    $command->onError($error);
+                } else {
+                    $command = $this->currentCommand;
+                    $command->onNext($message);
+                    
+                    if($command->hasFinished()) {
+                        if($this->currentCommand === $command) {
+                            $this->currentCommand = null;
+                        }
+                        
+                        $command->onComplete();
                     }
                 }
-            } else {
-                $this->unshiftCommand();
+            } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
+                $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
+                $this->emit('error', array($error));
             }
             
             $this->emit('message', array($message));

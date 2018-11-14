@@ -126,4 +126,12 @@ class PrepareCommand extends PromiseCommand {
                 .(\is_object($value) ? \get_class($value) : \gettype($value)).' it can not handle');
         }
     }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return true;
+    }
 }

@@ -200,4 +200,12 @@ class StatementExecuteCommand extends QueryCommand {
         
         return array($unsigned, $type, $value);
     }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return false;
+    }
 }

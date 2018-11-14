@@ -19,4 +19,10 @@ interface CommandInterface extends \Plasma\CommandInterface {
      * @return int
      */
     function setParserState(): int;
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool;
 }

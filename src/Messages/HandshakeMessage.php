@@ -147,7 +147,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
         
         $serverVersion = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
         $connectionID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
-        $scramble = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer); // Part 1
+        $scramble = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 8); // Part 1
         
         $buffer = \substr($buffer, 1); // Remove filler byte
         
@@ -171,13 +171,18 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 throw $exception;
             }
             
-            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
+            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
                 $authDataLength = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
-                $len = \max(13, ($authDataLength - 8));
-                
-                $scramble .= \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, $len);
             } else {
+                $authDataLength  = 0;
                 $buffer = \substr($buffer, 1);
+            }
+            
+            $buffer = \substr($buffer, 10);
+            
+            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
+                $len = \max(13, ($authDataLength - 8));
+                $this->scramble .= \rtrim(\Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, $len), "\x00");
             }
             
             if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
@@ -186,36 +191,8 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
             
             $this->characterSet = $characterSet;
             $this->statusFlags = $statusFlags;
-            $this->authPluginName = $authPluginName;
+            $this->authPluginName = $authPluginName ?? null;
         }
-        
-        return $buffer;
-    }
-    
-    /**
-     * Parses the message as Handshake V9.
-     * @return string|bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
-     */
-    protected function parseProtocol9(string $buffer) {
-        $versionLength = \strpos($buffer, "\x00");
-        if($versionLength === false) {
-            return false;
-        }
-        
-        $versionLength = \strpos($buffer, "\x00", ($versionLength + 4));
-        if($versionLength === false) {
-            return false;
-        }
-        
-        $serverVersion = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-        $connectionID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
-        $scramble = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-        
-        $this->protocolVersion = 9;
-        $this->serverVersion = $serverVersion;
-        $this->connectionID = $connectionID;
-        $this->scramble = $scramble;
         
         return $buffer;
     }

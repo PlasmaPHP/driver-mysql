@@ -74,12 +74,12 @@ class QueryCommand extends PromiseCommand {
     function onNext($value): void {
         if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
             $this->handleQueryOnNextCaller($value);
-        } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $message instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
+        } elseif($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
             if($this->resolveValue !== null) {
-                $message->getParser()->markCommandAsFinished($this);
-            } elseif(empty($this->fields) && $message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
-                $this->resolveValue = new \Plasma\QueryResult($message->affectedRows, $message->warningsCount, $message->lastInsertedID);
-                $message->getParser()->markCommandAsFinished($this);
+                $value->getParser()->markCommandAsFinished($this);
+            } elseif(empty($this->fields) && $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
+                $this->resolveValue = new \Plasma\QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID);
+                $value->getParser()->markCommandAsFinished($this);
             } else {
                 $this->createResolve();
             }
@@ -93,5 +93,13 @@ class QueryCommand extends PromiseCommand {
     function createResolve(): void {
         $this->resolveValue = new \Plasma\StreamQueryResult($this->driver, $this, 0, 0, $this->fields, null);
         $this->deferred->resolve($this->resolveValue);
+    }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return true;
     }
 }

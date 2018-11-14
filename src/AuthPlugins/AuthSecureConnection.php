@@ -40,9 +40,9 @@ class AuthSecureConnection implements AuthPluginInterface {
      * @return string
      */
     function getHandshakeAuth(string $password): string {
-        if(!empty($this->password)) {
+        if(!empty($password)) {
             $hash = \sha1($password, true);
-            $str = $hash ^ \sha1($scramble.\sha1($hash, true), true);
+            $str = $hash ^ \sha1($this->handshake->scramble.\sha1($hash, true), true);
             
             return \Plasma\Drivers\MySQL\Messages\MessageUtility::writeStringLength($str);
         }

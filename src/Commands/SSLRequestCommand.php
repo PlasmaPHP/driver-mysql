@@ -106,4 +106,12 @@ class SSLRequestCommand implements CommandInterface {
     function waitForCompletion(): bool {
         return false;
     }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return false;
+    }
 }

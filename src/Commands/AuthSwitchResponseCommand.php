@@ -108,4 +108,12 @@ class AuthSwitchResponseCommand implements CommandInterface {
     function waitForCompletion(): bool {
         return true;
     }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return false;
+    }
 }

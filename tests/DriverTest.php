@@ -92,7 +92,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost:3306');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
@@ -106,57 +106,72 @@ class DriverTest extends TestCase {
         $prom = $driver->connect('root:abc-never@localhost');
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
-        $this->expectException(\InvalidArgumentException::class); // for testing
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessageRegExp('/^Access denied for user/i');
+        
         $this->await($prom);
     }
     
-    function testConnectForceTLS() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
+    /**
+     * @group tls
+     */
+    function testConnectForceTLSLocalhost() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
-        
     }
     
+    /**
+     * @group tls
+     */
+    function testConnectForceTLSLocalhostIgnored() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true));
+        $driver = $factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+    }
+    
+    /**
+     * @group tls
+     */
+    function testConnectForceTLSIgnoredSecureServer() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true));
+        $driver = $factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+    }
+    
+    /**
+     * @group tls
+     */
     function testConnectForceTLSFailure() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
-        $this->expectException(\InvalidArgumentException::class); // for testing
-        $this->await($prom);
-    }
-    
-    function testConnectForceTLSPrivate() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('TLS is not supported by the server');
         
-        $prom = $this->connect($driver, 'localhost');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
-        
-        $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
-    }
-    
-    function testConnectForceTLSPrivateIgnored() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.ignoreIPs' => array()));
-        $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
-        
-        $prom = $this->connect($driver, '127.0.0.1');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
-        
-        $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        $this->await($prom, 30.0);
     }
     
     function testPauseStreamConsumption() {
@@ -171,25 +186,26 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, '127.0.0.1');
+        $prom = $this->connect($driver, '127.0.0.1:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
         $client
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $driver->runCommand($client, $ping);
+        
         $promC = $driver->runCommand($client, $ping);
-        
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
-        $this->await($promC);
         
-        $prom2 = $this->close($driver->close());
+        $prom2 = $driver->close();
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
         
+        $this->await($promC);
         $this->await($prom2);
     }
     
@@ -203,22 +219,23 @@ class DriverTest extends TestCase {
             $deferred->resolve();
         });
         
-        $prom = $this->connect($driver, '127.0.0.1');
+        $prom = $this->connect($driver, '127.0.0.1:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
         $client
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
         $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $driver->runCommand($client, $ping);
+        
         $promC = $driver->runCommand($client, $ping);
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
         
-        $prom2 = $this->quit($driver->close());
-        $this->assertNull($prom2);
+        $this->assertNull($driver->quit());
         
         try {
             $this->assertInstanceOf(\Throwable::class, $this->await($promC));
@@ -233,7 +250,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $this->assertFalse($driver->isInTransaction());
@@ -265,7 +282,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
@@ -293,6 +310,60 @@ class DriverTest extends TestCase {
         
         $this->expectException(\LogicException::class);
         $this->await($promC2);
+    }
+    
+    function testQuery() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->exactly(2))
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\QueryResultInterface::class, $res);
+        
+        $prom2 = $driver->query($client, 'SHOW DATABASES');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        
+        $res2 = $this->await($prom2);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res2);
+        
+        $data = array();
+        $deferred = new \React\Promise\Deferred();
+        
+        $res2->on('error', function (\Throwable $e) {
+            throw $e;
+        });
+        
+        $res2->on('data', function ($row) use (&$data) {
+            $data[] = $row;
+        });
+        
+        $res2->on('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $this->await($deferred->promise());
+        
+        var_dump($data);
+    }
+    
+    function testPrepare() {
+        
+    }
+    
+    function testExecute() {
+        
     }
     
     function createClientMock(): \Plasma\ClientInterface {

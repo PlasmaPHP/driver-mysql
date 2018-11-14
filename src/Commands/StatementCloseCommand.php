@@ -60,4 +60,12 @@ class StatementCloseCommand extends PromiseCommand {
     function onNext($value): void {
         // Nothing to do
     }
+    
+    /**
+     * Whether the sequence ID should be resetted.
+     * @return bool
+     */
+    function resetSequence(): bool {
+        return false;
+    }
 }

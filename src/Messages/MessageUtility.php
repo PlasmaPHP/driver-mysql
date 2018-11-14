@@ -79,7 +79,7 @@ class MessageUtility {
      * @return int|null
      */
     static function readIntLength(string &$buffer): ?int {
-        $f = static::readInt1();
+        $f = static::readInt1($buffer);
         if($f <= 250) {
             return $f;
         }
@@ -89,14 +89,14 @@ class MessageUtility {
         }
         
         if($f === 252) {
-            return static::readInt2();
+            return static::readInt2($buffer);
         }
         
         if($f === 253) {
-            return static::readInt3();
+            return static::readInt3($buffer);
         }
         
-        return static::readInt8();
+        return static::readInt8($buffer);
     }
     
     /**
@@ -104,7 +104,7 @@ class MessageUtility {
      * @return string|null
      */
     static function readStringLength(string &$buffer, ?int $length = null): ?string {
-        $length = ($length !== null ? $length : static::readIntLength());
+        $length = ($length !== null ? $length : static::readIntLength($buffer));
         if($length === null) {
             return null;
         }
@@ -219,10 +219,15 @@ class MessageUtility {
     /**
      * Reads a specified length from the buffer and discards the read part.
      * @return string
+     * @throws \InvalidArgumentException
      */
     static function readBuffer(string &$buffer, int $length): string {
+        if(\strlen($buffer) < $length) {
+            throw new \InvalidArgumentException('Trying to read behind buffer');
+        }
+        
         $str = \substr($buffer, 0, $length);
-        $buffer = \substr($buffer, ($length + 1));
+        $buffer = \substr($buffer, $length);
         
         return $str;
     }

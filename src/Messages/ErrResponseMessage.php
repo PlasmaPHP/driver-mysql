@@ -67,11 +67,6 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function parseMessage(string $buffer) {
-        $nameLength = \strpos($buffer, "\x00");
-        if($nameLength === false) {
-            return false;
-        }
-        
         $this->errorCode = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
         
         $handshake = $this->parser->getHandshakeMessage();

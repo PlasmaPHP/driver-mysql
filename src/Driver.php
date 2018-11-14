@@ -26,11 +26,8 @@ class Driver implements \Plasma\DriverInterface {
      */
     protected $options = array(
         'tls.context' => array(),
-        'tls.force' => false,
-        'tls.ignoreIPs' => array(
-            'localhost',
-            '127.0.0.1'
-        )
+        'tls.force' => true,
+        'tls.forceLocal' => false
     );
     
     /**
@@ -74,6 +71,11 @@ class Driver implements \Plasma\DriverInterface {
      * @var bool
      */
     protected $transaction = false;
+    
+    /**
+     * @var \React\Promise\Deferred
+     */
+    protected $goingAway;
     
     /**
      * Constructor.
@@ -126,6 +128,10 @@ class Driver implements \Plasma\DriverInterface {
      * @return \React\Promise\PromiseInterface
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
+        if($this->goingAway || $this->connectionState === \Plasma\DriverInterface::CONNECTION_UNUSABLE) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away or unusable')));
+        }
+        
         $uri = 'mysql://'.\ltrim($uri, 'mysql://');
         
         $parts = \parse_url($uri);
@@ -135,8 +141,9 @@ class Driver implements \Plasma\DriverInterface {
         
         $host = $parts['host'].':'.($parts['port'] ?? 3306);
         $this->connectionState = static::CONNECTION_STARTED;
+        $resolved = false;
         
-        return $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts) {
+        return $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
             // See description of property encryption
             if(!($connection instanceof \React\Socket\Connection)) {
                 throw new \LogicException('Custom connection class is NOT supported yet (encryption limitation)');
@@ -157,17 +164,32 @@ class Driver implements \Plasma\DriverInterface {
                 $this->emit('close');
             });
             
+            $deferred = new \React\Promise\Deferred();
             $this->parser = new \Plasma\Drivers\MySQL\ProtocolParser($this, $this->connection);
             
+            $this->parser->on('error', function (\Throwable $error) use (&$deferred, &$resolved) {
+                if($resolved) {
+                    $this->emit('error', array($error));
+                } else {
+                    $deferred->reject($error);
+                }
+            });
+            
             $user = ($parts['user'] ?? 'root');
-            $password = ($parts['password'] ?? '');
+            $password = ($parts['pass'] ?? '');
             $db = (!empty($parts['path']) ? \ltrim($parts['path'], '/') : '');
             
             $credentials = \compact('user', 'password', 'db');
-            $deferred = new \React\Promise\Deferred();
             
-            $this->startHandshake($db, $credentials, $deferred);
-            return $deferred->promise();
+            $this->startHandshake($credentials, $deferred);
+            return $deferred->promise()->then(function () use (&$resolved) {
+                $this->busy = static::STATE_IDLE;
+                $resolved = true;
+                
+                if(\count($this->queue) > 0) {
+                    $this->parser->invokeCommand($this->getNextCommand());
+                }
+            });
         });
     }
     
@@ -177,6 +199,10 @@ class Driver implements \Plasma\DriverInterface {
      * @return bool  Whether the operation was successful.
      */
     function pauseStreamConsumption(): bool {
+        if($this->goingAway) {
+            return false;
+        }
+        
         $this->connection->pause();
         return true;
     }
@@ -187,6 +213,10 @@ class Driver implements \Plasma\DriverInterface {
      * @return bool  Whether the operation was successful.
      */
     function resumeStreamConsumption(): bool {
+        if($this->goingAway) {
+            return false;
+        }
+        
         $this->connection->resume();
         return true;
     }
@@ -207,11 +237,15 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         return $this->goingAway->promise()->then(function () {
+            if($this->connectionState !== static::CONNECTION_OK) {
+                return;
+            }
+            
             $deferred = new \React\Promise\Deferred();
             
             $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
             
-            $connection->once('close', function () use (&$deferred) {
+            $this->connection->once('close', function () use (&$deferred) {
                 $deferred->resolve();
             });
             
@@ -235,10 +269,12 @@ class Driver implements \Plasma\DriverInterface {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
         }
         
-        $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
-        $this->parser->invokeCommand($quit);
-        
-        $this->connection->close();
+        if($this->connectionState === static::CONNECTION_OK) {
+            $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+            $this->parser->invokeCommand($quit);
+            
+            $this->connection->close();
+        }
     }
     
     /**
@@ -259,12 +295,18 @@ class Driver implements \Plasma\DriverInterface {
      * @see \Plasma\QueryResultInterface
      */
     function query(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+        }
+        
         $command = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
         $this->executeCommand($command);
         
-        $command->once('end', function () use (&$client) {
-            $client->checkinConnection($this);
-        });
+        if(!$this->transaction) {
+            $command->once('end', function () use (&$client) {
+                $client->checkinConnection($this);
+            });
+        }
         
         return $command->getPromise();
     }
@@ -279,6 +321,10 @@ class Driver implements \Plasma\DriverInterface {
      * @see \Plasma\StatementInterface
      */
     function prepare(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+        }
+        
         $command = new \Plasma\Drivers\MySQL\Commands\PrepareCommand($client, $this, $query);
         $this->executeCommand($command);
         
@@ -297,6 +343,10 @@ class Driver implements \Plasma\DriverInterface {
      * @see \Plasma\StatementInterface
      */
     function execute(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+        }
+        
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
             return $statement->execute($params)->then(function (\Plasma\QueryResultInterface $result) use (&$statement) {
                 return $statement->close()->then(function () use ($result) {
@@ -308,7 +358,9 @@ class Driver implements \Plasma\DriverInterface {
                 });
             });
         })->always(function () use (&$client) {
-            $client->checkinConnection($this);
+            if(!$this->transaction) {
+                $client->checkinConnection($this);
+            }
         });
     }
     
@@ -340,6 +392,10 @@ class Driver implements \Plasma\DriverInterface {
      * @see \Plasma\TransactionInterface
      */
     function beginTransaction(\Plasma\ClientInterface $client, int $isolation = \Plasma\TransactionInterface::ISOLATION_COMMITTED): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+        }
+        
         if($this->transaction) {
             throw new \Plasma\Exception('Driver is already in transaction');
         }
@@ -362,11 +418,15 @@ class Driver implements \Plasma\DriverInterface {
             break;
         }
         
-        return $this->query($query)->then(function () {
-            return $this->query('START TRANSACTION');
+        $this->transaction = true;
+        
+        return $this->query($client, $query)->then(function () use (&$client) {
+            return $this->query($client, 'START TRANSACTION');
         })->then(function () use (&$client, $isolation) {
-            $this->transaction = true;
             return (new \Plasma\Transaction($client, $this, $isolation));
+        })->otherwise(function (\Throwable $e) {
+            $this->transaction = false;
+            throw $e;
         });
     }
     
@@ -388,14 +448,24 @@ class Driver implements \Plasma\DriverInterface {
      * @return \React\Promise\PromiseInterface
      */
     function runCommand(\Plasma\ClientInterface $client, \Plasma\CommandInterface $command) {
+        if($this->goingAway) {
+            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+        }
+        
         return (new \React\Promise\Promise(function (callable $resolve, callable $reject) use (&$client, &$command) {
             $command->once('end', function ($value = null) use (&$client, &$resolve) {
-                $client->checkinConnection($this);
+                if(!$this->transaction) {
+                    $client->checkinConnection($this);
+                }
+                
                 $resolve($value);
             });
             
             $command->once('error', function (\Throwable $error) use (&$client, &$reject) {
-                $client->checkinConnection($this);
+                if(!$this->transaction) {
+                    $client->checkinConnection($this);
+                }
+                
                 $reject($error);
             });
             
@@ -410,8 +480,10 @@ class Driver implements \Plasma\DriverInterface {
      */
     function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
+        echo 'Command '.get_class($command).' added to queue'.PHP_EOL;
         
-        if($this->parser && $this->parser->getCurrentCommand() === null) {
+        if($this->parser && $this->busy === static::STATE_IDLE) {
+            echo 'Command '.get_class($command).' invoked into parser'.PHP_EOL;
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
@@ -427,42 +499,65 @@ class Driver implements \Plasma\DriverInterface {
             }
             
             return null;
+        } elseif($this->busy === static::STATE_BUSY) {
+            return null;
         }
         
         /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
+        echo 'Unshifted command '.get_class($command).PHP_EOL;
+        
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
+            
+            $command->once('error', function () {
+                echo 'Command errored'.PHP_EOL;
+                $this->busy = static::STATE_IDLE;
+                
+                $this->endCommand();
+            });
+            
+            $command->once('end', function () {
+                echo 'Command ended'.PHP_EOL;
+                $this->busy = static::STATE_IDLE;
+                
+                $this->endCommand();
+            });
+        } else {
+            $this->endCommand();
         }
-        
-        $command->once('end', function () {
-            $this->busy = static::STATE_IDLE;
-            
-            if($this->goingAway && \count($this->queue) === 0) {
-                return $this->goingAway->resolve();
-            }
-            
-            $this->parser->invokeCommand($this->getNextCommand());
-        });
         
         return $command;
     }
     
     /**
+     * Finishes up a command.
+     * @return void
+     */
+    protected function endCommand() {
+        if($this->goingAway && \count($this->queue) === 0) {
+            return $this->goingAway->resolve();
+        }
+        
+        $this->parser->invokeCommand($this->getNextCommand());
+    }
+    
+    /**
      * Starts the handshake process.
-     * @param string                   $db
      * @param array                    $credentials
      * @param \React\Promise\Deferred  $deferred
      * @return void
      */
-    protected function startHandshake(string $db, array $credentials, \React\Promise\Deferred $deferred) {
-        $listener = function (\Plasma\Drivers\MySQL\Messages\MessageInterface $message) use ($db, $credentials, &$deferred, &$listener) {
+    protected function startHandshake(array $credentials, \React\Promise\Deferred $deferred) {
+        $listener = function (\Plasma\Drivers\MySQL\Messages\MessageInterface $message) use ($credentials, &$deferred, &$listener) {
             if($message instanceof \Plasma\Drivers\MySQL\Messages\HandshakeMessage) {
                 $this->parser->removeListener('message', $listener);
                 
                 $this->connectionState = static::CONNECTION_SETENV;
                 $clientFlags = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_CAPABILITIES;
+                
+                \extract($credentials);
                 
                 if($db !== '') {
                     $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_CONNECT_WITH_DB;
@@ -484,32 +579,27 @@ class Driver implements \Plasma\DriverInterface {
                     }
                 }
                 
-                $remote = $this->connection->getRemoteAddress();
-                $ignored = \in_array($remote, $this->options['tls.ignoreIPs']);
+                $remote = \parse_url($this->connection->getRemoteAddress())['host'];
                 
-                // If SSL supported, connect through SSL
-                if(!$ignored && ($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) {
-                    $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
-                    
-                    $ssl = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($message, $clientFlags);
-                    
-                    $ssl->once('end', function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
-                        $this->connectionState = static::CONNECTION_SSL_STARTUP;
+                if($remote !== '127.0.0.1' || $this->options['tls.forceLocal']) {
+                    if(($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) { // If SSL supported, connect through SSL
+                        $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
                         
-                        $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
-                            $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
-                        }, function (\Throwable $error) use (&$deferred) {
-                            $deferred->reject($$error);
-                            $this->connection->close();
+                        $ssl = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($message, $clientFlags);
+                        
+                        $ssl->once('end', function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
+                            $this->connectionState = static::CONNECTION_SSL_STARTUP;
+                            
+                            $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
+                                $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
+                            }, function (\Throwable $error) use (&$deferred) {
+                                $deferred->reject($$error);
+                                $this->connection->close();
+                            });
                         });
-                    });
-                    
-                    return $this->parser->invokeCommand($ssl);
-                } else {
-                    $ipCheck = (\filter_var($remote, \FILTER_VALIDATE_IP) === false ||
-                        \filter_var($remote, \FILTER_VALIDATE_IP, \FILTER_FLAG_NO_PRIV_RANGE) === false);
-                    
-                    if(!$ignored && $ipCheck && $this->options['tls.force']) {
+                        
+                        return $this->parser->invokeCommand($ssl);
+                    } elseif($this->options['tls.force'] || $this->options['tls.forceLocal']) {
                         $deferred->reject((new \Plasma\Exception('TLS is not supported by the server')));
                         $this->connection->close();
                         return;
@@ -627,7 +717,8 @@ class Driver implements \Plasma\DriverInterface {
         $validator = \CharlotteDunois\Validation\Validator::make($options, array(
             'connector' => 'class:\React\Socket\ConnectorInterface=object',
             'tls.context' => 'array',
-            'tls.force' => 'boolean'
+            'tls.force' => 'boolean',
+            'tls.forceLocal' => 'boolean'
         ));
         
         $validator->throw(\InvalidArgumentException::class);
