@@ -27,7 +27,7 @@ install:
   - sh -c "if [ '$DB' = 'mysql' ]; then sudo apt-get remove mariadb-common mariadb-server; fi"
   - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server; fi"
   - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get install mariadb-common mariadb-server; fi"
-  - sh -c "sudo service mysql start"
+  - sh -c "sudo service mysql restart"
 
 before_script:
   - cat ~travis/.my.cnf
