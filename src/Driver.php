@@ -230,14 +230,17 @@ class Driver implements \Plasma\DriverInterface {
             return $this->goingAway->promise();
         }
         
+        $state = $this->connectionState;
+        $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
+        
         $this->goingAway = new \React\Promise\Deferred();
         
         if(\count($this->queue) === 0) {
             $this->goingAway->resolve();
         }
         
-        return $this->goingAway->promise()->then(function () {
-            if($this->connectionState !== static::CONNECTION_OK) {
+        return $this->goingAway->promise()->then(function () use ($state) {
+            if($state !== static::CONNECTION_OK) {
                 return;
             }
             
@@ -264,12 +267,22 @@ class Driver implements \Plasma\DriverInterface {
      * @return void
      */
     function quit(): void {
+        if($this->goingAway) {
+            return;
+        }
+        
+        $state = $this->connectionState;
+        $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
+        
+        $this->goingAway = new \React\Promise\Deferred();
+        $this->goingAway->resolve();
+        
         /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
         while($command = \array_shift($this->queue)) {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
         }
         
-        if($this->connectionState === static::CONNECTION_OK) {
+        if($state === static::CONNECTION_OK) {
             $quit = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
             $this->parser->invokeCommand($quit);
             
@@ -296,7 +309,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function query(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
         if($this->goingAway) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
@@ -322,7 +335,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function prepare(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
         if($this->goingAway) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\PrepareCommand($client, $this, $query);
@@ -344,7 +357,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function execute(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
         if($this->goingAway) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
@@ -393,7 +406,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function beginTransaction(\Plasma\ClientInterface $client, int $isolation = \Plasma\TransactionInterface::ISOLATION_COMMITTED): \React\Promise\PromiseInterface {
         if($this->goingAway) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
         if($this->transaction) {
@@ -449,7 +462,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function runCommand(\Plasma\ClientInterface $client, \Plasma\CommandInterface $command) {
         if($this->goingAway) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
         return (new \React\Promise\Promise(function (callable $resolve, callable $reject) use (&$client, &$command) {
@@ -477,20 +490,34 @@ class Driver implements \Plasma\DriverInterface {
      * Executes a command.
      * @param \Plasma\CommandInterface  $command
      * @return void
+     * @internal
      */
     function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
-        echo 'Command '.get_class($command).' added to queue'.PHP_EOL;
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue');
         
         if($this->parser && $this->busy === static::STATE_IDLE) {
-            echo 'Command '.get_class($command).' invoked into parser'.PHP_EOL;
+            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser');
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
     
     /**
+     * Get the handshake message, or null if none received yet.
+     * @return \Plasma\Drivers\MySQL\Messages\HandshakeMessage|null
+     */
+    function getHandshake(): ?\Plasma\Drivers\MySQL\Messages\HandshakeMessage {
+        if($this->parser) {
+            return $this->parser->getHandshakeMessage();
+        }
+        
+        return null;
+    }
+    
+    /**
      * Get the next command, or null.
      * @return \Plasma\CommandInterface|null
+     * @internal
      */
     function getNextCommand(): ?\Plasma\CommandInterface {
         if(\count($this->queue) === 0) {
@@ -506,20 +533,20 @@ class Driver implements \Plasma\DriverInterface {
         /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
-        echo 'Unshifted command '.get_class($command).PHP_EOL;
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command));
         
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
             
             $command->once('error', function () {
-                echo 'Command errored'.PHP_EOL;
+                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command errored');
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
             });
             
             $command->once('end', function () {
-                echo 'Command ended'.PHP_EOL;
+                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command ended');
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();

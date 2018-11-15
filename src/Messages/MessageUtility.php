@@ -231,4 +231,15 @@ class MessageUtility {
         
         return $str;
     }
+    
+    /**
+     * Debug.
+     * @param mixed $debug
+     * @return void
+     */
+    static function debug($debug): void {
+        if(\getenv('PLASMA_DEBUG')) {
+            echo $debug.\PHP_EOL;
+        }
+    }
 }

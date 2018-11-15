@@ -14,17 +14,27 @@ php:
 services:
   - mysql
 
+addons:
+  mariadb: '10.3'
+
 env:
   - DB=mysql
   - DB=mariadb
 
 install:
   - composer install -n
+  - sh -c "sudo service mysql stop"
+  - sh -c "if [ '$DB' = 'mysql' ]; then sudo apt-get remove mariadb-common mariadb-server && sudo service mysql start; fi"
+  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server && sudo service mysql start; fi"
 
 before_script:
-  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server && sudo service mysql start; fi"
+  - cat ~travis/.my.cnf
+  - sudo chmod +x ./gen-ssl.sh && sudo ./gen-ssl.sh
+  - sudo touch /var/run/mysqld/mysql_secure.sock
+  - sudo cp /var/lib/mysql /var/lib/mysql_secure
+  - sudo mysqld --defaults-file=./.travis/my.cnf
 
 script:
   - mysql -e 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`'
   - ./vendor/bin/phpunit tests
-  - mysql -e 'CREATE TABLE IF EXISTS `plasma_tmp`'
+  - mysql -e 'DROP TABLE IF EXISTS `plasma_tmp`'

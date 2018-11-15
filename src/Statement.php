@@ -160,7 +160,7 @@ class Statement implements \Plasma\StatementInterface {
         }
         
         $realParams = array();
-        $pos = (\array_key_exists(1, $params) ? 1 : 0);
+        $pos = (\array_key_exists(0, $params) ? 0 : 1);
         
         foreach($this->rewrittenParams as $param) {
             $key = ($param[0] === ':' ? $param : ($pos++));

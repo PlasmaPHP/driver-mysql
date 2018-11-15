@@ -220,12 +220,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->sequenceID = -1;
         }
         
-        echo 'Processing command '.get_class($command).PHP_EOL;
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Processing command '.get_class($command));
         
         $this->sendPacket($command->getEncodedMessage());
         
         if($command !== $this->currentCommand || !$command->waitForCompletion()) {
-            echo 'Mark command as completed'.PHP_EOL;
+            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Mark command as completed');
             $command->onComplete();
             
             if($command === $this->currentCommand) {
@@ -246,7 +246,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         $this->sequenceID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
         
         if($bufferLen < $length) {
-            echo 'returned (insufficent length)'.PHP_EOL;
+            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned (insufficent length)');
             return;
         }
         
@@ -261,7 +261,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
         } else {
             $firstChar = \Plasma\Drivers\MySQL\Messages\MessageUtility::readBuffer($buffer, 1);
-            echo 'Received Message char "'.$firstChar.'" (0x'.dechex(ord($firstChar)).')'.PHP_EOL;
+            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message char "'.$firstChar.'" (0x'.dechex(ord($firstChar)).')');
             
             if($firstChar === "\xFE" && $this->state < static::STATE_OK) {
                 $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
@@ -281,7 +281,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         if(!($message instanceof \Plasma\Drivers\MySQL\Messages\MessageInterface)) {
-            echo 'returned (no message)'.PHP_EOL;
+            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned (no message)');
             $this->buffer = $buffer;
             
             if(\strlen($this->buffer) > 0) {
@@ -291,7 +291,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             return;
         }
         
-        echo 'Received Message '.get_class($message).PHP_EOL;
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message '.get_class($message));
         
         $state = $message->setParserState();
         if($state !== -1) {
@@ -315,7 +315,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         try {
             $buffer = $message->parseMessage($buffer, $this);
             if($buffer === false) {
-                echo 'returned handle (unsufficent buffer length)'.PHP_EOL;
+                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned handle (unsufficent buffer length)');
                 return;
             }
             
