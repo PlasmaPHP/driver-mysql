@@ -51,7 +51,7 @@ class PingCommand implements CommandInterface {
      */
     function onComplete(): void {
         $this->finished = true;
-        $this->emit('end', array());
+        $this->emit('end');
     }
     
     /**

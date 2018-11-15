@@ -74,7 +74,7 @@ abstract class PromiseCommand implements CommandInterface {
      */
     function onComplete(): void {
         $this->finished = true;
-        $this->emit('end', array());
+        $this->emit('end');
     }
     
     /**
@@ -116,32 +116,30 @@ abstract class PromiseCommand implements CommandInterface {
      * @return void
      */
     function handleQueryOnNextCaller(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): void {
-        $parser = $value->getParser();
         $buffer = $value->getBuffer();
+        $parser = $value->getParser();
         
         if($this->resolveValue !== null) {
-            $this->emit('data', array($this->parseResultsetRow($buffer)));
+            $row = $this->parseResultsetRow($buffer);
+            $this->emit('data', array($row));
         } else {
-            $field = $this->handleQueryOnNextCallerColumns($value);
+            $field = $this->handleQueryOnNextCallerColumns($buffer, $parser);
             if($field) {
                 $this->fields[$field->getName()] = $field;
-                
-                if(\count($this->fields) >= $this->fieldsCount) {
-                    $this->createResolve();
-                }
             }
         }
+        
+        // By ref doesn't seem to work, this is a workaround for now
+        $value->setBuffer($buffer);
     }
     
     /**
      * Handles the column definitions of query commands on next caller.
-     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
+     * @param string                                $buffer
+     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
      * @return \Plasma\ColumnDefinitionInterface|null
      */
-    function handleQueryOnNextCallerColumns(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): ?\Plasma\ColumnDefinitionInterface {
-        $parser = $value->getParser();
-        $buffer = $value->getBuffer();
-        
+    function handleQueryOnNextCallerColumns(string &$buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser): ?\Plasma\ColumnDefinitionInterface {
         if($this->fieldsCount === null) {
             $fieldCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
             
@@ -159,22 +157,21 @@ abstract class PromiseCommand implements CommandInterface {
             return null;
         }
         
-        return static::parseColumnDefinition($buffer, $parser);
+        return static::parseColumnDefinition($buffer);
     }
     
     /**
      * Parses the column definition.
-     * @param string                                $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param string  $buffer
      * @return \Plasma\ColumnDefinitionInterface
      */
-    static function parseColumnDefinition(string &$buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser): \Plasma\ColumnDefinitionInterface {
-        $catalog = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer); // catalog
+    static function parseColumnDefinition(string &$buffer): \Plasma\ColumnDefinitionInterface {
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer); // catalog - always "def"
         $database = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
         $table = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
-        $orgTable = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer); // orgTable
         $name = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
-        $orgName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
+        \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer); // orgName
         $buffer = \substr($buffer, 1); // 0x0C
         
         $charset = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
@@ -189,13 +186,9 @@ abstract class PromiseCommand implements CommandInterface {
             \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
         }*/
         
-        $database = ($database ?: $catalog);
-        $table = ($table ?: $orgTable);
-        $name = ($name ?: $orgName);
-        
         $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? 'Unknown charset "'.$charset.'"';
-        $type = $type;
-        $nullable = ($flags & \Plasma\Drivers\MySQL\FieldFlags::NOT_NULL_FLAG) === 0;
+        $type = \Plasma\Drivers\MySQL\FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
+        $nullable = (($flags & \Plasma\Drivers\MySQL\FieldFlags::NOT_NULL_FLAG) === 0);
         
         return (new \Plasma\ColumnDefinition($database, $table, $name, $type, $charset, $length, $nullable, $flags, $decimals));
     }
@@ -218,7 +211,7 @@ abstract class PromiseCommand implements CommandInterface {
                     ->decodeType($column->getType(), $rawValue)
                     ->getValue();
             } catch (\Plasma\Exception $e) {
-                $value = $this->stdDecodeValue($rawValue);
+                $value = $this->stdDecodeValue($column, $rawValue);
             }
             
             $row[$column->getName()] = $value;

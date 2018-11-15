@@ -341,25 +341,68 @@ class DriverTest extends TestCase {
         $data = array();
         $deferred = new \React\Promise\Deferred();
         
+        $res2->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
         $res2->on('error', function (\Throwable $e) {
             throw $e;
         });
         
         $res2->on('data', function ($row) use (&$data) {
-            $data[] = $row;
+            if($row['Database'] === 'plasma_tmp') {
+                $data = $row;
+            }
         });
         
-        $res2->on('close', function () use (&$deferred) {
+        $this->await($deferred->promise());
+        $this->assertSame(array('Database' => 'plasma_tmp'), $data);
+    }
+    
+    function testPrepare() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->prepare($client, 'SELECT * FROM `SCHEMATA` WHERE `SCHEMA_NAME` = ?');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $statement = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StatementInterface::class, $statement);
+        
+        $prom2 = $statement->execute(array('plasma_tmp'));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        
+        $res = $this->await($prom2);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = array();
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) {
+            throw $e;
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            $data[] = $row;
         });
         
         $this->await($deferred->promise());
         
         var_dump($data);
-    }
-    
-    function testPrepare() {
-        
     }
     
     function testExecute() {

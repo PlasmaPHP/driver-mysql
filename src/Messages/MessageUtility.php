@@ -223,7 +223,7 @@ class MessageUtility {
      */
     static function readBuffer(string &$buffer, int $length): string {
         if(\strlen($buffer) < $length) {
-            throw new \InvalidArgumentException('Trying to read behind buffer');
+            throw new \InvalidArgumentException('Trying to read behind buffer, requested '.$length.' bytes, only got '.\strlen($buffer).' bytes');
         }
         
         $str = \substr($buffer, 0, $length);
@@ -240,6 +240,7 @@ class MessageUtility {
     static function debug($debug): void {
         if(\getenv('PLASMA_DEBUG')) {
             echo $debug.\PHP_EOL;
+            \ob_flush();
         }
     }
 }

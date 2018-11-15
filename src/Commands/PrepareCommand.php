@@ -62,6 +62,11 @@ class PrepareCommand extends PromiseCommand {
     protected $fields = array();
     
     /**
+     * @var int
+     */
+    protected $fieldsCount;
+    
+    /**
      * @var \Plasma\StatementInterface|null
      */
     protected $resolveValue;
@@ -79,7 +84,7 @@ class PrepareCommand extends PromiseCommand {
         $this->driver = $driver;
         $this->query = $query;
         
-        [ $this->rewrittenQuery, $this->rewrittenParams ] = \Plasma\Utility::parseParameters($this->query, '?');
+        [ 'query' => $this->rewrittenQuery, 'parameters' => $this->rewrittenParams ] = \Plasma\Utility::parseParameters($this->query, '?');
     }
     
     /**
@@ -97,10 +102,16 @@ class PrepareCommand extends PromiseCommand {
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function onNext($value): void {
+        var_dump($value); ob_flush();
+        
         if($value instanceof \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage) {
             $this->okResponse = $value;
+            $this->fieldsCount = $this->okResponse->numColumns;
         } elseif($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
-            $parsed = $this->handleQueryOnNextCallerColumns($value);
+            $buffer = $value->getBuffer();
+            $parser = $value->getParser();
+            
+            $parsed = $this->handleQueryOnNextCallerColumns($buffer, $parser);
             
             if($this->okResponse->numParams >= \count($this->params)) {
                 $this->params[] = $parsed;
@@ -109,9 +120,10 @@ class PrepareCommand extends PromiseCommand {
             } else {
                 throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received more column definition packets than defined');
             }
+            
+            $value->setBuffer($buffer);
         } elseif(
-            ($value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage)
-            && $this->okResponse->numParams <= \count($this->params) && $this->okResponse->numColumns <= \count($this->fields)
+            $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage
         ) {
             $this->finished = true;
             
@@ -119,7 +131,7 @@ class PrepareCommand extends PromiseCommand {
             $queryr = $this->rewrittenQuery;
             $paramsr = $this->rewrittenParams;
             
-            $this->resolveValue = new \Plasma\Drivers\MySQL\Statement($this->client, $this->driver, $id, $this->query, $queryr, $paramsr, $this->params, $this->columns);
+            $this->resolveValue = new \Plasma\Drivers\MySQL\Statement($this->client, $this->driver, $id, $this->query, $queryr, $paramsr, $this->params, $this->fields);
             $this->deferred->resolve($this->resolveValue);
         } else {
             throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received value of type '

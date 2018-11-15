@@ -538,15 +538,15 @@ class Driver implements \Plasma\DriverInterface {
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
             
-            $command->once('error', function () {
-                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command errored');
+            $command->once('error', function () use (&$command) {
+                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored');
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
             });
             
-            $command->once('end', function () {
-                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command ended');
+            $command->once('end', function () use (&$command) {
+                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended');
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
@@ -563,11 +563,13 @@ class Driver implements \Plasma\DriverInterface {
      * @return void
      */
     protected function endCommand() {
-        if($this->goingAway && \count($this->queue) === 0) {
-            return $this->goingAway->resolve();
-        }
-        
-        $this->parser->invokeCommand($this->getNextCommand());
+        $this->loop->futureTick(function () {
+            if($this->goingAway && \count($this->queue) === 0) {
+                return $this->goingAway->resolve();
+            }
+            
+            $this->parser->invokeCommand($this->getNextCommand());
+        });
     }
     
     /**

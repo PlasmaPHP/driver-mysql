@@ -49,4 +49,13 @@ class ProtocolOnNextCaller {
     function &getBuffer(): string {
         return $this->buffer;
     }
+    
+    /**
+     * Set the buffer.
+     * @param string  $buffer
+     * @return void
+     */
+    function setBuffer(string $buffer): void {
+        $this->buffer = $buffer;
+    }
 }

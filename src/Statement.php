@@ -136,7 +136,7 @@ class Statement implements \Plasma\StatementInterface {
         $close = new \Plasma\Drivers\MySQL\Commands\StatementCloseCommand($this->driver, $this->id);
         $this->driver->executeCommand($close);
         
-        $this->once('end', function () {
+        $close->once('end', function () {
             $this->client->checkinConnection($this->driver);
         });
         

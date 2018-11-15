@@ -58,7 +58,7 @@ class StatementExecuteCommand extends QueryCommand {
         
         $paramCount = \count($this->params);
         
-        $bitmapOffset = \strlen($payload);
+        $bitmapOffset = \strlen($packet);
         $packet .= \str_repeat("\0", (($paramCount + 7) >> 3));
         
         $bound = 0;

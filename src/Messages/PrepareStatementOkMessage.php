@@ -71,8 +71,6 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
             return false;
         }
         
-        $buffer = \substr($buffer, 1); // Status OK
-        
         $statementID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
         $numColumns = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
         $numParams = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
