@@ -383,6 +383,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
         
         $res = $this->await($prom2);
+        var_dump($res);
         $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
         
         $data = array();

@@ -56,7 +56,7 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
      * @return string
      */
     static function getID(): string {
-        return "\x0C";
+        return "\x00";
     }
     
     /**

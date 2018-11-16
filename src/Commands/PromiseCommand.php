@@ -146,7 +146,7 @@ abstract class PromiseCommand implements CommandInterface {
             if($fieldCount === 0xFB) {
                 // Handle it on future tick, so we can cleanly finish the buffer of this call
                 $this->driver->getLoop()->futureTick(function () use (&$parser) {
-                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage();
+                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
                     $parser->handleMessage($localMsg);
                 });
                 

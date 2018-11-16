@@ -110,7 +110,8 @@ class StatementExecuteCommand extends QueryCommand {
      * @return array
      */
     protected function parseResultsetRow(string &$buffer): array {
-        $buffer = \substr($buffer, 1); // Skip first byte (header)
+        var_dump(unpack('C*', $buffer));
+        //$buffer = \substr($buffer, 1); // Skip first byte (header)
         
         $nullRow = array();
         $i = 0;
@@ -124,7 +125,7 @@ class StatementExecuteCommand extends QueryCommand {
             $i++;
         }
         
-        $buffer = \substr($buffer, ((\count($column) + 9) >> 3)); // Remove NULL-bitmap
+        $buffer = \substr($buffer, ((\count($this->fields) + 9) >> 3)); // Remove NULL-bitmap
         $row = array();
         
         /** @var \Plasma\ColumnDefinitionInterface  $column */

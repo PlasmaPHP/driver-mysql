@@ -240,7 +240,7 @@ class MessageUtility {
     static function debug($debug): void {
         if(\getenv('PLASMA_DEBUG')) {
             echo $debug.\PHP_EOL;
-            \ob_flush();
+            @\ob_flush();
         }
     }
 }

@@ -72,12 +72,14 @@ class QueryCommand extends PromiseCommand {
      * @return void
      */
     function onNext($value): void {
+        var_dump($value); ob_flush();
+        
         if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
             $this->handleQueryOnNextCaller($value);
         } elseif($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
             if($this->resolveValue !== null) {
                 $value->getParser()->markCommandAsFinished($this);
-            } elseif(empty($this->fields) && $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) {
+            } elseif($this->fieldsCount == 0 && $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) { // Matching 0 and null
                 $this->resolveValue = new \Plasma\QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID);
                 $value->getParser()->markCommandAsFinished($this);
             } else {

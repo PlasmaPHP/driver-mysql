@@ -40,7 +40,7 @@ class AuthSecureConnection implements AuthPluginInterface {
      * @return string
      */
     function getHandshakeAuth(string $password): string {
-        if(!empty($password)) {
+        if($password !== '') {
             $hash = \sha1($password, true);
             $str = $hash ^ \sha1($this->handshake->scramble.\sha1($hash, true), true);
             
