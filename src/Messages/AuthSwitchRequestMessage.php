@@ -42,28 +42,29 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
      * @return string
      */
     static function getID(): string {
-        return "\xFEa";
+        return "\xFE";
     }
     
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $nameLength = \strpos($buffer, "\x00");
-        if($nameLength === false) {
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        try {
+            $this->authPluginName = $buffer->readStringNull();
+            
+            if($buffer->getSize() > 0) {
+                $this->authPluginData = $buffer->getContents();
+                $buffer->clear();
+            }
+            
+            return true;
+        } catch (\InvalidArgumentException $e) {
             return false;
         }
-        
-        if(\strlen($buffer) > $nameLength) {
-            $this->authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-            $this->authPluginData = $buffer;
-        }
-        
-        return '';
     }
     
     /**

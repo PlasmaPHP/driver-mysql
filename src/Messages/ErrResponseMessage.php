@@ -62,12 +62,12 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $this->errorCode = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        $this->errorCode = $buffer->readInt2();
         
         $handshake = $this->parser->getHandshakeMessage();
         if(!$handshake || $this->parser->getState() == \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE) {
@@ -78,11 +78,12 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
             throw $exception;
         }
         
-        $this->sqlStateMarker = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 1);
-        $this->sqlState = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 5);
-        $this->errorMessage = $buffer;
+        $this->sqlStateMarker = $buffer->readStringLength(1);
+        $this->sqlState = $buffer->readStringLength(5);
+        $this->errorMessage = $buffer->getContents();
         
-        return '';
+        $buffer->clear();
+        return true;
     }
     
     /**

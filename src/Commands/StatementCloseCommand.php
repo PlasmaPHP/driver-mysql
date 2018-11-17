@@ -22,11 +22,6 @@ class StatementCloseCommand extends PromiseCommand {
     const COMMAND_ID = 0x19;
     
     /**
-     * @var \Plasma\DriverInterface
-     */
-    protected $driver;
-    
-    /**
      * @var mixed
      */
     protected $id;
@@ -37,7 +32,7 @@ class StatementCloseCommand extends PromiseCommand {
      * @param mixed                    $id
      */
     function __construct(\Plasma\DriverInterface $driver, $id) {
-        parent::__construct();
+        parent::__construct($driver);
         
         $this->driver = $driver;
         $this->id = $id;

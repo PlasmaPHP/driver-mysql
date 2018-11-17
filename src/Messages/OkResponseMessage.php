@@ -81,54 +81,40 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $nameLength = \strpos($buffer, "\x00");
-        if($nameLength === false) {
-            return false;
-        }
-        
-        $affectedRows = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
-        $lastInsertedID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readIntLength($buffer);
-        
-        $handshake = $this->parser->getHandshakeMessage();
-        if(!$handshake) {
-            throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
-        }
-        
-        $statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-        $warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-        
-        if(($handshake->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
-            $sessionInfo = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
-            
-            if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
-                $sessionStateChanges = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer);
-            } else {
-                $sessionStateChanges = null;
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        try {
+            $handshake = $this->parser->getHandshakeMessage();
+            if(!$handshake) {
+                throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
             }
             
-            $info = null;
-        } else {
-            $sessionInfo = null;
-            $sessionStateChanges = null;
-            $info = $buffer;
+            $this->affectedRows = $buffer->readIntLength();
+            $this->lastInsertedID = $buffer->readIntLength();
+            
+            $this->statusFlags = $buffer->readInt2();
+            $this->warningsCount = $buffer->readInt2();
+            
+            if(($handshake->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
+                $this->sessionInfo = $buffer->readStringLength();
+                
+                if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
+                    $this->sessionStateChanges = $buffer->readStringLength();
+                }
+                
+                $this->info = null;
+            } else {
+                $this->info = $buffer->getContents();
+                $buffer->clear();
+            }
+            
+            return true;
+        } catch (\InvalidArgumentException $e) {
+            return false;
         }
-        
-        $this->affectedRows = $affectedRows;
-        $this->lastInsertedID = $lastInsertedID;
-        
-        $this->statusFlags = $statusFlags;
-        $this->warningsCount = $warningsCount;
-        
-        $this->sessionInfo = $sessionInfo;
-        $this->sessionStateChanges = $sessionStateChanges;
-        $this->info = $info;
-        
-        return $buffer;
     }
     
     /**

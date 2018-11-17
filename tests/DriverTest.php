@@ -345,8 +345,8 @@ class DriverTest extends TestCase {
             $deferred->resolve();
         });
         
-        $res2->on('error', function (\Throwable $e) {
-            throw $e;
+        $res2->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
         });
         
         $res2->on('data', function ($row) use (&$data) {
@@ -383,7 +383,6 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
         
         $res = $this->await($prom2);
-        var_dump($res);
         $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
         
         $data = array();
@@ -393,8 +392,8 @@ class DriverTest extends TestCase {
             $deferred->resolve();
         });
         
-        $res->on('error', function (\Throwable $e) {
-            throw $e;
+        $res->once('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
         });
         
         $res->on('data', function ($row) use (&$data) {

@@ -38,28 +38,28 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
         
         if($filesystem !== null) {
-            $filesystem->file($buffer)->getContents()->otherwise(function () {
+            $filesystem->file($buffer->getContents())->getContents()->otherwise(function () {
                 return '';
             })->then(function (string $content) {
                 $this->sendFile($content);
             });
         } else {
-            if(\file_exists($buffer)) {
-                $this->sendFile(\file_get_contents($buffer));
+            if(\file_exists($buffer->getContents())) {
+                $this->sendFile(\file_get_contents($buffer->getContents()));
             } else {
                 $this->sendFile('');
             }
         }
         
-        return '';
+        return true;
     }
     
     /**

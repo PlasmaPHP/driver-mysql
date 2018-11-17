@@ -44,7 +44,7 @@ class AuthSecureConnection implements AuthPluginInterface {
             $hash = \sha1($password, true);
             $str = $hash ^ \sha1($this->handshake->scramble.\sha1($hash, true), true);
             
-            return \Plasma\Drivers\MySQL\Messages\MessageUtility::writeStringLength($str);
+            return \Plasma\BinaryBuffer::writeStringLength($str);
         }
         
         return "\x00";

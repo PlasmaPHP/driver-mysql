@@ -62,29 +62,29 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        if(\strlen($buffer) < 12) {
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        if($buffer->getSize() < 11) {
             return false;
         }
         
-        $statementID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
-        $numColumns = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-        $numParams = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $statementID = $buffer->readInt4();
+        $numColumns = $buffer->readInt2();
+        $numParams = $buffer->readInt2();
         
-        $buffer = \substr($buffer, 1); // Filler
+        $buffer->read(1); // Filler
         
-        $warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $warningsCount = $buffer->readInt2();
         
         $this->statementID = $statementID;
         $this->numColumns = $numColumns;
         $this->numParams = $numParams;
         $this->warningsCount = $warningsCount;
         
-        return $buffer;
+        return true;
     }
     
     /**

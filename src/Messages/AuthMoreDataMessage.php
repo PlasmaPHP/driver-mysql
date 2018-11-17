@@ -43,15 +43,15 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $this->authPluginData = $buffer;
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        $this->authPluginData = $buffer->getContents();
+        $buffer->clear();
         
-        return '';
+        return true;
     }
     
     /**

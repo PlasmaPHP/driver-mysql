@@ -12,6 +12,7 @@
     "require": {
         "php": ">=7.1",
         "ext-bcmath": "*",
+        "plasma/binary-buffer": "^0.1|dev-master",
         "plasma/core": "^0.1|dev-master",
         "evenement/evenement": "^3.0|^2.0",
         "react/event-loop": "^1.0|^0.5|^0.4",

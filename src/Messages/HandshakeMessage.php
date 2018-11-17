@@ -87,16 +87,16 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
-        $protocol = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+        $protocol = $buffer->readInt1();
         
         switch($protocol) {
             case 0x0A:
-                return $this->parseProtocol10($buffer);
+                $this->parseProtocol10($buffer);
             break;
             default:
                 $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('Unsupported protocol version');
@@ -106,6 +106,8 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 throw $exception;
             break;
         }
+        
+        return true;
     }
     
     /**
@@ -126,16 +128,16 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     
     /**
      * Parses the message as Handshake V10.
-     * @return string|bool
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    protected function parseProtocol10(string $buffer) {
-        $versionLength = \strpos($buffer, "\x00");
+    protected function parseProtocol10(\Plasma\BinaryBuffer $buffer): bool {
+        $versionLength = \strpos($buffer->getContents(), "\x00");
         if($versionLength === false) {
             return false;
         }
         
-        $buffLength = \strlen($buffer);
+        $buffLength = $buffer->getSize();
         $minLength = $versionLength + 1 + 15;
         $moreDataLength = $buffLength - $minLength;
         
@@ -145,25 +147,21 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
             return false;
         }
         
-        $serverVersion = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
-        $connectionID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt4($buffer);
-        $scramble = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, 8); // Part 1
-        
-        $buffer = \substr($buffer, 1); // Remove filler byte
-        
-        $capability = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-        
         $this->protocolVersion = 10;
-        $this->serverVersion = $serverVersion;
-        $this->connectionID = $connectionID;
-        $this->scramble = $scramble;
+        $this->serverVersion = $buffer->readStringNull();
+        $this->connectionID = $buffer->readInt4();
+        $this->scramble = $buffer->readStringLength(8); // Part 1
         
-        if(\strlen($buffer) > 0) {
-            $characterSet = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
-            $statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-            $capability += \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer) << 16;
+        $buffer->readStringLength(1); // Remove filler byte
+        
+        $this->capability = $buffer->readInt2();
+        
+        if($buffer->getSize() > 0) {
+            $this->characterSet = $buffer->readInt1();
+            $this->statusFlags = $buffer->readInt2();
+            $this->capability += $buffer->readInt2() << 16;
             
-            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41) === 0) {
+            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41) === 0) {
                 $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('The old MySQL protocol 320 is not supported');
                 $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
                 $exception->setBuffer('');
@@ -171,29 +169,25 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 throw $exception;
             }
             
-            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
-                $authDataLength = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
+            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
+                $authDataLength = $buffer->readInt1();
             } else {
                 $authDataLength  = 0;
-                $buffer = \substr($buffer, 1);
+                $buffer->readStringLength(1);
             }
             
-            $buffer = \substr($buffer, 10);
+            $buffer->readStringLength(10);
             
-            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
+            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
                 $len = \max(13, ($authDataLength - 8));
-                $this->scramble .= \rtrim(\Plasma\Drivers\MySQL\Messages\MessageUtility::readStringLength($buffer, $len), "\x00");
+                $this->scramble .= \rtrim($buffer->readStringLength($len), "\x00");
             }
             
-            if(($capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
-                $authPluginName = \Plasma\Drivers\MySQL\Messages\MessageUtility::readStringNull($buffer);
+            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
+                $this->authPluginName = $buffer->readStringNull();
             }
-            
-            $this->characterSet = $characterSet;
-            $this->statusFlags = $statusFlags;
-            $this->authPluginName = $authPluginName ?? null;
         }
         
-        return $buffer;
+        return true;
     }
 }

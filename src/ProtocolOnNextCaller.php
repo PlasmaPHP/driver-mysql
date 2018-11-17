@@ -20,16 +20,16 @@ class ProtocolOnNextCaller {
     protected $parser;
     
     /**
-     * @var string
+     * @var \Plasma\BinaryBuffer
      */
     protected $buffer;
     
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
-     * @param string                                $buffer
+     * @param \Plasma\BinaryBuffer                  $buffer
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, string &$buffer) {
+    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\BinaryBuffer $buffer) {
         $this->parser = $parser;
         $this->buffer = $buffer;
     }
@@ -44,18 +44,9 @@ class ProtocolOnNextCaller {
     
     /**
      * Get the buffer.
-     * @return string
+     * @return \Plasma\BinaryBuffer
      */
-    function &getBuffer(): string {
+    function getBuffer(): \Plasma\BinaryBuffer {
         return $this->buffer;
-    }
-    
-    /**
-     * Set the buffer.
-     * @param string  $buffer
-     * @return void
-     */
-    function setBuffer(string $buffer): void {
-        $this->buffer = $buffer;
     }
 }

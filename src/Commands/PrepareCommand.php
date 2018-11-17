@@ -27,11 +27,6 @@ class PrepareCommand extends PromiseCommand {
     protected $client;
     
     /**
-     * @var \Plasma\DriverInterface
-     */
-    protected $driver;
-    
-    /**
      * @var string
      */
     protected $query;
@@ -78,7 +73,7 @@ class PrepareCommand extends PromiseCommand {
      * @param string                   $query
      */
     function __construct(\Plasma\ClientInterface $client, \Plasma\DriverInterface $driver, string $query) {
-        parent::__construct();
+        parent::__construct($driver);
         
         $this->client = $client;
         $this->driver = $driver;
@@ -102,7 +97,7 @@ class PrepareCommand extends PromiseCommand {
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function onNext($value): void {
-        var_dump($value); ob_flush();
+        //var_dump($value); ob_flush();
         
         if($value instanceof \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage) {
             $this->okResponse = $value;
@@ -120,8 +115,6 @@ class PrepareCommand extends PromiseCommand {
             } else {
                 throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received more column definition packets than defined');
             }
-            
-            $value->setBuffer($buffer);
         } elseif(
             $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage
         ) {

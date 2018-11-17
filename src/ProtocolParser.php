@@ -91,9 +91,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     protected $state = ProtocolParser::STATE_INIT;
     
     /**
-     * @var string
+     * @var \Plasma\BinaryBuffer
      */
-    protected $buffer = '';
+    protected $buffer;
+    
+    /**
+     * @var \Plasma\BinaryBuffer
+     */
+    protected $messageBuffer;
     
     /**
      * The sequence ID is incremented with each packet and may wrap around.
@@ -126,6 +131,9 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     function __construct(\Plasma\Drivers\MySQL\Driver $driver, \React\Socket\ConnectionInterface $connection) {
         $this->driver = $driver;
         $this->connection = $connection;
+        
+        $this->buffer = new \Plasma\BinaryBuffer();
+        $this->messageBuffer = new \Plasma\BinaryBuffer();
         
         $this->addEvents();
     }
@@ -188,8 +196,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     function sendPacket(string $packet): void {
-        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt3(\strlen($packet));
-        $sequence = \Plasma\Drivers\MySQL\Messages\MessageUtility::writeInt1((++$this->sequenceID));
+        $length = \Plasma\BinaryBuffer::writeInt3(\strlen($packet));
+        $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
         
         $this->connection->write($length.$sequence.$packet);
     }
@@ -228,12 +236,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->sequenceID = -1;
         }
         
-        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Processing command '.get_class($command));
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Processing command '.get_class($command)) || true));
         
         $this->sendPacket($command->getEncodedMessage());
         
         if($command !== $this->currentCommand || !$command->waitForCompletion()) {
-            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Mark command as completed');
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Mark command as completed') || true));
             $command->onComplete();
             
             if($command === $this->currentCommand) {
@@ -247,28 +255,51 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     protected function processBuffer() {
-        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('ProtocolParser::processBuffer called');
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('ProtocolParser::processBuffer called') || true));
         
-        $buffer = $this->buffer;
-        
-        $length = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt3($buffer);
-        $this->sequenceID = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt1($buffer);
-        
-        $stmtExecuteCmd = ($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand);
-        $isOKresponse = ($buffer[0] === "\x00" && $this->buffer[0] !== "\x00");
-        
-        if(!$stmtExecuteCmd) {
-            if(\strlen($buffer) < $length) {
-                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, insufficent length: '.\strlen($buffer).', '.$length.' required');
-                return;
-            }
-        } elseif(!$isOKresponse) {
-            $buffer = $this->buffer;
+        if($this->buffer->getSize() < 4) {
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Not enough data received for packet header ('.$this->buffer->getSize().')') || true));
+            return;
         }
         
-        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Read length and sequence');
+        $buffer = clone $this->buffer;
         
-        //var_dump(unpack('C*', substr($this->buffer, 10)));
+        $length = $buffer->readInt3();
+        $this->sequenceID = $buffer->readInt1();
+        
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('First 10 bytes: '.implode(', ', unpack('C*', \substr($this->buffer->getContents(), 0, 10)))) || true));
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Read packet header length ('.$length.') and sequence ('.$this->sequenceID.')') || true));
+        
+        if($length === 0xFFFFFF) {
+            $this->buffer->read(($length + 4));
+            $this->messageBuffer->append($buffer->read($length));
+            
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, 16mb packet received, waiting for the last one to arrive') || true));
+            return;
+        } elseif($this->messageBuffer->getSize() > 0) {
+            $this->messageBuffer->append($buffer->read($length));
+            $buffer = $this->messageBuffer;
+            $this->messageBuffer = new \Plasma\BinaryBuffer();
+        }
+        
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('regular packet') || true));
+        
+        if($buffer->getSize() < $length) {
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, insufficent length: '.$buffer->getSize().', '.$length.' required') || true));
+            return;
+        }
+        
+        if($length > 0) {
+            $this->buffer->read(($length + 4));
+            $buffer->slice(0, $length);
+        } else {
+            $this->buffer->slice($buffer->getSize());
+        }
+        
+        if($buffer->getSize() === 0) {
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Buffer length is 0') || true));
+            return;
+        }
         
         /** @var \Plasma\Drivers\MySQL\Messages\MessageInterface  $message */
         $message = null;
@@ -276,8 +307,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         if($this->state === static::STATE_INIT) {
             $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
         } else {
-            $firstChar = \Plasma\Drivers\MySQL\Messages\MessageUtility::readBuffer($buffer, 1);
-            \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message char "'.$firstChar.'" (0x'.\dechex(\ord($firstChar)).') - buffer length: '.\strlen($buffer));
+            $firstChar = $buffer->read(1);
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message char "'.$firstChar.'" (0x'.\dechex(\ord($firstChar)).') - buffer length: '.$buffer->getSize()) || true));
             
             switch(true) {
                 case ($firstChar === \Plasma\Drivers\MySQL\Messages\ErrResponseMessage::getID()):
@@ -289,47 +320,42 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 case ($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\PrepareCommand && $firstChar === "\x00"):
                     $message = new \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage($this);
                 break;
-                case ($isOKresponse):
+                case ($firstChar === "\x00"):
                     $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
                 break;
                 default:
+                    $buffer->prepend($firstChar);
+                    
                     if($this->parseCallback !== null) {
-                        $buffer = $firstChar.$buffer;
-                        
                         $parse = $this->parseCallback;
                         $this->parseCallback = null;
                         
-                        $buffer = $firstChar.$buffer;
-                        
                         $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
                         $parse($caller);
-                        
-                        $buffer = $caller->getBuffer();
                     } else {
-                        $buffer = $firstChar.$buffer;
-                        
                         $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
                         $this->currentCommand->onNext($caller);
-                        
-                        $buffer = $caller->getBuffer();
                     }
+                    
+                    \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Left over buffer: '.$buffer->getSize()) || true));
+                    /*if($buffer->getSize() > 0) {
+                        $this->buffer->prepend($buffer->getContents());
+                    }*/
+                    
+                    if($this->buffer->getSize() > 0) {
+                        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Scheduling future read with '.$this->buffer->getSize().' bytes') || true));
+                        
+                        $this->driver->getLoop()->futureTick(function () {
+                            $this->processBuffer();
+                        });
+                    }
+                    
+                    return;
                 break;
             }
         }
         
-        if(!($message instanceof \Plasma\Drivers\MySQL\Messages\MessageInterface)) {
-            $this->buffer = $buffer;
-            
-            if(\strlen($this->buffer) > 0) {
-                $this->driver->getLoop()->futureTick(function () {
-                    $this->processBuffer();
-                });
-            }
-            
-            return;
-        }
-        
-        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message '.\get_class($message));
+        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message '.\get_class($message)) || true));
         
         $state = $message->setParserState();
         if($state !== -1) {
@@ -345,19 +371,17 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Handles an incoming message.
-     * @param string                                           $buffer
+     * @param \Plasma\BinaryBuffer                             $buffer
      * @param \Plasma\Drivers\MySQL\Messages\MessageInterface  $message
      * @return void
      */
-    function handleMessage(string &$buffer, \Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
+    function handleMessage(\Plasma\BinaryBuffer $buffer, \Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
         try {
             $buffer = $message->parseMessage($buffer, $this);
-            if($buffer === false) {
-                \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned handle (unsufficent buffer length)');
+            if(!$buffer) {
+                \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned handle (unsufficent buffer length)') || true));
                 return;
             }
-            
-            $this->buffer = $buffer;
             
             if($this->currentCommand !== null) {
                 if(
@@ -401,7 +425,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             
             $buffer = $e->getBuffer();
             if($buffer !== null) {
-                $this->buffer = $buffer;
+                $this->buffer->clear();
+                $this->buffer->append($buffer);
             }
             
             if($this->currentCommand !== null) {
@@ -412,7 +437,9 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->connection->close();
         }
         
-        if(\strlen($this->buffer) > 0) {
+        if($this->buffer->getSize() > 0) {
+            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Scheduling future read (msg) with '.$this->buffer->getSize().' bytes') || true));
+            
             $this->driver->getLoop()->futureTick(function () {
                 $this->processBuffer();
             });
@@ -425,7 +452,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      */
     protected function addEvents() {
         $this->connection->on('data', function ($chunk) {
-            $this->buffer .= $chunk;
+            $this->buffer->append($chunk);
             $this->processBuffer();
         });
         

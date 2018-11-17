@@ -22,11 +22,6 @@ class QueryCommand extends PromiseCommand {
     const COMMAND_ID = 0x03;
     
     /**
-     * @var \Plasma\DriverInterface
-     */
-    protected $driver;
-    
-    /**
      * @var string
      */
     protected $query;
@@ -52,7 +47,7 @@ class QueryCommand extends PromiseCommand {
      * @param string                   $query
      */
     function __construct(\Plasma\DriverInterface $driver, string $query) {
-        parent::__construct();
+        parent::__construct($driver);
         
         $this->driver = $driver;
         $this->query = $query;
@@ -72,8 +67,6 @@ class QueryCommand extends PromiseCommand {
      * @return void
      */
     function onNext($value): void {
-        var_dump($value); ob_flush();
-        
         if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
             $this->handleQueryOnNextCaller($value);
         } elseif($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {

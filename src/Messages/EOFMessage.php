@@ -51,20 +51,20 @@ class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param string  $buffer
-     * @return string|bool
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
-    function parseMessage(string $buffer) {
+    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $handshake = $this->parser->getHandshakeMessage();
         if(!$handshake) {
             throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
         }
         
-        $this->statusFlags = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
-        $this->warningsCount = \Plasma\Drivers\MySQL\Messages\MessageUtility::readInt2($buffer);
+        $this->statusFlags = $buffer->readInt2();
+        $this->warningsCount = $buffer->readInt2();
         
-        return $buffer;
+        return true;
     }
     
     /**
