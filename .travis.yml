@@ -1,7 +1,7 @@
 language: php
 
-dist: trusty
-sudo: required
+#dist: trusty
+#sudo: required
 
 cache:
   directories:
@@ -14,29 +14,29 @@ php:
 services:
   - mysql
 
-addons:
-  mariadb: '10.3'
+#addons:
+#  mariadb: '10.3'
 
-env:
-  - DB=mysql
-  - DB=mariadb
+#env:
+#  - DB=mysql
+#  - DB=mariadb
 
 install:
   - composer install -n
-  - sh -c "sudo service mysql stop"
-  - sh -c "if [ '$DB' = 'mysql' ]; then sudo apt-get remove mariadb-common mariadb-server; fi"
-  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server; fi"
-  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get install mariadb-common mariadb-server; fi"
-  - sh -c "sudo service mysql restart"
+#  - sh -c "sudo service mysql stop"
+#  - sh -c "if [ '$DB' = 'mysql' ]; then sudo apt-get remove mariadb-common mariadb-server; fi"
+#  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server; fi"
+#  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get install mariadb-common mariadb-server; fi"
+#  - sh -c "sudo service mysql restart"
 
-before_script:
-  - cat ~travis/.my.cnf
-  - sudo chmod +x ./gen-ssl.sh && sudo ./gen-ssl.sh
-  - sudo touch /var/run/mysqld/mysql_secure.sock
-  - sudo cp /var/lib/mysql /var/lib/mysql_secure
-  - sudo mysqld --defaults-file=./.travis/my.cnf
+#before_script:
+#  - cat ~travis/.my.cnf
+#  - sudo chmod +x ./gen-ssl.sh && sudo ./gen-ssl.sh
+#  - sudo touch /var/run/mysqld/mysql_secure.sock
+#  - sudo cp /var/lib/mysql /var/lib/mysql_secure
+#  - sudo mysqld --defaults-file=./.travis/my.cnf
 
 script:
   - mysql -e 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`'
-  - ./vendor/bin/phpunit tests
+  - ./vendor/bin/phpunit tests --exclude-group tls
   - mysql -e 'DROP TABLE IF EXISTS `plasma_tmp`'
