@@ -17,13 +17,15 @@ After you've used composer to install the components and the dependencies, you g
 
 The factory takes a loop instance and an array of options (see the factory class documentation for the available options).
 
-The factory also gives you the ability to asychronously interface with the filesystem using `react/filesystem`, if a `LOCAL INFILE` request ever occurres. Additionally you can create your own auth plugins, if your database server uses an authentication plugin this driver doesn't support (yet).
+The factory also gives you the ability to asychronously interface with the filesystem using `react/filesystem`, if a `LOCAL INFILE` request ever occurres.
+
+Additionally you can create your own auth plugins, if your database server uses an authentication plugin this driver doesn't support (yet).
 
 ```php
 $loop = \React\EventLoop\Factory::create();
 
 $factory = \Plasma\Drivers\MySQL\DriverFactory::create($loop, array());
-$client = \Plasma\Client::create($factorys, 'user:password@localhost:3306/database?charset=utf8mb4', array());
+$client = \Plasma\Client::create($factory, 'user:password@localhost:3306/database?charset=utf8mb4', array());
 
 // Code which uses the client to run queries against the database
 
