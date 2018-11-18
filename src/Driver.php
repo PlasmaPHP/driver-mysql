@@ -523,10 +523,10 @@ class Driver implements \Plasma\DriverInterface {
      */
     function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
-        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue') || true));
+        // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue') || true));
         
         if($this->parser && $this->busy === static::STATE_IDLE) {
-            \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser') || true));
+            // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser') || true));
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
@@ -562,20 +562,20 @@ class Driver implements \Plasma\DriverInterface {
         /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
-        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command)) || true));
+        // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command)) || true));
         
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
             
             $command->once('error', function () use (&$command) {
-                \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored') || true));
+                // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
             });
             
             $command->once('end', function () use (&$command) {
-                \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended') || true));
+                // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
@@ -732,7 +732,7 @@ class Driver implements \Plasma\DriverInterface {
                         $plugins = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
                         foreach($plugins as $key => $plug) {
                             if($key === $name) {
-                                $plugin = new $plug($this->parser, $message);
+                                $plugin = new $plug($this->parser, $this->parser->getHandshakeMessage());
                                 
                                 $command = new \Plasma\Drivers\MySQL\Commands\AuthSwitchResponseCommand($message, $plugin, $password);
                                 return $this->parser->invokeCommand($command);
