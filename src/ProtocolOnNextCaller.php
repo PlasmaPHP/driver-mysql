@@ -12,6 +12,7 @@ namespace Plasma\Drivers\MySQL;
 /**
  * Protocol On Next object.
  * @internal
+ * @codeCoverageIgnore
  */
 class ProtocolOnNextCaller {
     /**

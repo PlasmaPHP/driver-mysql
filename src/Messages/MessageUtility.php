@@ -12,6 +12,7 @@ namespace Plasma\Drivers\MySQL\Messages;
 /**
  * Utilities for messages.
  * @internal
+ * @codeCoverageIgnore
  */
 class MessageUtility {
     /**
