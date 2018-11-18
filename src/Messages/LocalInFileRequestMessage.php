@@ -80,19 +80,10 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     
     /**
      * Sends the contents to the server.
-     * @param string $contents
+     * @param string $content
      */
     protected function sendFile(string $content) {
-        $maxSize = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
-        
-        for($size = \strlen($content); $size > 0; $size -= $maxSize) {
-            $partial = \substr($content, 0, $maxSize);
-            $content = \substr($content, $maxSize);
-            
-            $this->parser->sendPacket($partial);
-            $partial = '';
-        }
-        
+        $this->parser->sendPacket($content);
         $this->parser->sendPacket('');
     }
 }

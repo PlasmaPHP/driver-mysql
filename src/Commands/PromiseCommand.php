@@ -41,6 +41,7 @@ abstract class PromiseCommand implements CommandInterface {
      * @param \Plasma\DriverInterface  $driver
      */
     function __construct(\Plasma\DriverInterface $driver) {
+        $this->driver = $driver;
         $this->deferred = new \React\Promise\Deferred();
         
         $this->once('error', function (\Throwable $error) {

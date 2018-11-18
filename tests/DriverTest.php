@@ -480,7 +480,6 @@ class DriverTest extends TestCase {
         });
         
         $res->on('data', function ($row) use (&$data) {
-            var_dump($row);
             if($row['SCHEMA_NAME'] === 'plasma_tmp') {
                 $data = $row;
             }
@@ -535,6 +534,12 @@ class DriverTest extends TestCase {
         
         $this->await($deferred->promise());
         $this->assertNotNull($data);
+        
+        // Waiting 2 seconds for the automatic close to occurr
+        $deferredT = new \React\Promise\Deferred();
+        $this->loop->addTimer(2, array($deferredT, 'resolve'));
+        
+        $this->await($deferredT->promise());
     }
     
     function createClientMock(): \Plasma\ClientInterface {

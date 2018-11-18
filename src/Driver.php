@@ -360,7 +360,7 @@ class Driver implements \Plasma\DriverInterface {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
         
-        $command = new \Plasma\Drivers\MySQL\Commands\PrepareCommand($client, $this, $query);
+        $command = new \Plasma\Drivers\MySQL\Commands\StatementPrepareCommand($client, $this, $query);
         $this->executeCommand($command);
         
         return $command->getPromise();

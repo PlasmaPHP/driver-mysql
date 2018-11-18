@@ -10,10 +10,10 @@
 namespace Plasma\Drivers\MySQL\Commands;
 
 /**
- * Prepare command.
+ * Statement Prepare command.
  * @internal
  */
-class PrepareCommand extends PromiseCommand {
+class StatementPrepareCommand extends PromiseCommand {
     /**
      * The identifier for this command.
      * @var int

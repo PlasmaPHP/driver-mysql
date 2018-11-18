@@ -196,10 +196,17 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     function sendPacket(string $packet): void {
-        $length = \Plasma\BinaryBuffer::writeInt3(\strlen($packet));
-        $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
+        $maxSize = static::CLIENT_MAX_PACKET_SIZE - 4;
         
-        $this->connection->write($length.$sequence.$packet);
+        do {
+            $partial = \substr($packet, 0, $maxSize);
+            $packet = \substr($packet, $maxSize);
+            
+            $length = \Plasma\BinaryBuffer::writeInt3(\strlen($partial));
+            $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
+            
+            $this->connection->write($length.$sequence.$partial);
+        } while(\strlen($packet) > $maxSize);
     }
     
     /**
@@ -232,7 +239,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             return;
         }
         
-        if($command instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface && $command->resetSequence()) {
+        if(!($command instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) || $command->resetSequence()) {
             $this->sequenceID = -1;
         }
         
@@ -282,8 +289,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->messageBuffer = new \Plasma\BinaryBuffer();
         }
         
-        \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('regular packet') || true));
-        
         if($buffer->getSize() < $length) {
             \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, insufficent length: '.$buffer->getSize().', '.$length.' required') || true));
             return;
@@ -310,18 +315,30 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $firstChar = $buffer->read(1);
             \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message char "'.$firstChar.'" (0x'.\dechex(\ord($firstChar)).') - buffer length: '.$buffer->getSize()) || true));
             
+            $okRespID = \Plasma\Drivers\MySQL\Messages\OkResponseMessage::getID();
+            $isOkMessage = (
+                (
+                    $firstChar === $okRespID ||
+                    (
+                        $firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() &&
+                        ($this->handshakeMessage->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0
+                    )
+                ) &&
+                !($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand)
+            );
+            
             switch(true) {
                 case ($firstChar === \Plasma\Drivers\MySQL\Messages\ErrResponseMessage::getID()):
                     $message = new \Plasma\Drivers\MySQL\Messages\ErrResponseMessage($this);
                 break;
-                case ($firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() && $length < 6):
-                    $message = new \Plasma\Drivers\MySQL\Messages\EOFMessage($this);
-                break;
-                case ($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\PrepareCommand && $firstChar === "\x00"):
+                case ($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementPrepareCommand && $firstChar === $okRespID):
                     $message = new \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage($this);
                 break;
-                case ($firstChar === "\x00"):
+                case $isOkMessage:
                     $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
+                break;
+                case ($firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() && $length < 6):
+                    $message = new \Plasma\Drivers\MySQL\Messages\EOFMessage($this);
                 break;
                 default:
                     $buffer->prepend($firstChar);

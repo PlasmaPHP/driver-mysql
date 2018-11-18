@@ -33,8 +33,6 @@ class StatementCloseCommand extends PromiseCommand {
      */
     function __construct(\Plasma\DriverInterface $driver, $id) {
         parent::__construct($driver);
-        
-        $this->driver = $driver;
         $this->id = $id;
     }
     
@@ -43,7 +41,8 @@ class StatementCloseCommand extends PromiseCommand {
      * @return string
      */
     function getEncodedMessage(): string {
-        return \chr(static::COMMAND_ID).$this->id;
+        $this->finished = true;
+        return \chr(static::COMMAND_ID).\Plasma\BinaryBuffer::writeInt4($this->id);
     }
     
     /**
@@ -52,15 +51,15 @@ class StatementCloseCommand extends PromiseCommand {
      * @return void
      */
     function onNext($value): void {
-        $this->finished = true;
-        if(!($value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage)) {
-            $this->emit('error',
-                array(
-                    (new \Plasma\Exception('Unknown on next value received of type '
-                        .(\is_object($value) ? \get_class($value) : \gettype($value))))
-                )
-            );
-        }
+        // Nothing to do
+    }
+    
+    /**
+     * Whether this command sets the connection as busy.
+     * @return bool
+     */
+    function waitForCompletion(): bool {
+        return false;
     }
     
     /**

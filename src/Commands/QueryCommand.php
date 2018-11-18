@@ -92,7 +92,6 @@ class QueryCommand extends PromiseCommand {
         
         if($this->resolveValue !== null) {
             $row = $this->parseResultsetRow($buffer);
-            var_dump($row);
             $this->emit('data', array($row));
         } else {
             $field = $this->handleQueryOnNextCallerColumns($buffer, $parser);

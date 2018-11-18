@@ -99,13 +99,13 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
             $this->warningsCount = $buffer->readInt2();
             
             if(($handshake->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
-                $this->sessionInfo = $buffer->readStringLength();
-                
-                if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
-                    $this->sessionStateChanges = $buffer->readStringLength();
+                if($buffer->getSize() > 0) {
+                    $this->sessionInfo = $buffer->readStringLength();
+                    
+                    if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
+                        $this->sessionStateChanges = $buffer->readStringLength();
+                    }
                 }
-                
-                $this->info = null;
             } else {
                 $this->info = $buffer->getContents();
                 $buffer->clear();
@@ -113,6 +113,7 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
             
             return true;
         } catch (\InvalidArgumentException $e) {
+            echo $e.PHP_EOL;
             return false;
         }
     }

@@ -85,7 +85,6 @@ class StatementExecuteCommand extends QueryCommand {
             
             $types .= \chr($type).($unsigned ? "\x80" : "\x00");
             $values .= $value;
-            var_dump($param, unpack('C*', $value));
         }
         
         $packet .= \chr($bound);
@@ -113,6 +112,8 @@ class StatementExecuteCommand extends QueryCommand {
      * @return array
      */
     protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
+        $buffer->read(1); // remove packet header
+        
         $nullRow = array();
         $i = 0;
         
@@ -131,7 +132,7 @@ class StatementExecuteCommand extends QueryCommand {
         /** @var \Plasma\ColumnDefinitionInterface  $column */
         foreach($this->fields as $column) {
             if(\array_key_exists($column->getName(), $nullRow)) {
-                $row[$column->getName()] = $nullRow[$column->getName()];
+                $row[$column->getName()] = null;
                 continue;
             }
             
@@ -209,6 +210,23 @@ class StatementExecuteCommand extends QueryCommand {
         $flags = $column->getFlags();
         
         switch(true) {
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_STRING) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VARCHAR) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VAR_STRING) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_ENUM) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SET) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG_BLOB) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_MEDIUM_BLOB) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BLOB) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY_BLOB) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_GEOMETRY) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BIT) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DECIMAL) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NEWDECIMAL) !== 0):
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_JSON) !== 0):
+            case ($column->getType() === 'VARSTRING'): // WTF is going on ?! flags = 0, type = VARSTRING
+                $value = $buffer->readStringLength();
+            break;
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY) !== 0):
                 $value = $buffer->readInt1();
                 $value = $this->zeroFillInts($column, $value);
@@ -326,23 +344,6 @@ class StatementExecuteCommand extends QueryCommand {
             break;
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL) !== 0):
                 $value = null;
-            break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_STRING) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VARCHAR) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VAR_STRING) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_ENUM) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SET) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_MEDIUM_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_GEOMETRY) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BIT) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DECIMAL) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NEWDECIMAL) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_JSON) !== 0):
-            case ($column->getType() === 'VARSTRING'): // WTF is going on ?! flags = 0, type = VARSTRING
-                $value = $buffer->readStringLength();
             break;
             default:
                 throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$column->getType().')');
