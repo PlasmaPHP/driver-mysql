@@ -39,4 +39,4 @@ install:
 script:
   - mysql -e 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`'
   - ./vendor/bin/phpunit tests --exclude-group tls
-  - mysql -e 'DROP TABLE IF EXISTS `plasma_tmp`'
+  - mysql -e 'DROP DATABASE IF EXISTS `plasma_tmp`'
