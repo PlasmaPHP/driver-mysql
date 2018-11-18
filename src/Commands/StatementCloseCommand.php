@@ -43,7 +43,6 @@ class StatementCloseCommand extends PromiseCommand {
      * @return string
      */
     function getEncodedMessage(): string {
-        $this->finished = true;
         return \chr(static::COMMAND_ID).$this->id;
     }
     
@@ -53,7 +52,15 @@ class StatementCloseCommand extends PromiseCommand {
      * @return void
      */
     function onNext($value): void {
-        // Nothing to do
+        $this->finished = true;
+        if(!($value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage)) {
+            $this->emit('error',
+                array(
+                    (new \Plasma\Exception('Unknown on next value received of type '
+                        .(\is_object($value) ? \get_class($value) : \gettype($value))))
+                )
+            );
+        }
     }
     
     /**
@@ -61,6 +68,6 @@ class StatementCloseCommand extends PromiseCommand {
      * @return bool
      */
     function resetSequence(): bool {
-        return false;
+        return true;
     }
 }

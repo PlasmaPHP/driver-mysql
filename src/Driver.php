@@ -143,7 +143,18 @@ class Driver implements \Plasma\DriverInterface {
         $this->connectionState = static::CONNECTION_STARTED;
         $resolved = false;
         
-        return $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
+        if(!empty($parts['query'])) {
+            \parse_str($parts['query'], $query);
+            $charset = $query['charset'] ?? null;
+            $collate = $query['collate'] ?? null;
+            
+            unset($query);
+        } else {
+            $charset = null;
+            $collate = null;
+        }
+        
+        $connect =  $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
             // See description of property encryption
             if(!($connection instanceof \React\Socket\Connection)) {
                 throw new \LogicException('Custom connection class is NOT supported yet (encryption limitation)');
@@ -191,6 +202,17 @@ class Driver implements \Plasma\DriverInterface {
                 }
             });
         });
+        
+        if($charset) {
+            $connect = $connect->then(function () use ($charset, $collate) {
+                $query = 'SET NAMES "'.$charset.'"'.($collate ? ' COLLATE "'.$collate.'"' : '');
+                
+                $cmd = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
+                $this->executeCommand($cmd);
+            });
+        }
+        
+        return $connect;
     }
     
     /**
@@ -362,6 +384,14 @@ class Driver implements \Plasma\DriverInterface {
         
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
             return $statement->execute($params)->then(function (\Plasma\QueryResultInterface $result) use (&$statement) {
+                if($result instanceof \Plasma\StreamQueryResultInterface) {
+                    $statement->close(null, function (\Throwable $error) {
+                        $this->emit('error', array($error));
+                    });
+                    
+                    return $result;
+                }
+                
                 return $statement->close()->then(function () use ($result) {
                     return $result;
                 });
@@ -370,10 +400,6 @@ class Driver implements \Plasma\DriverInterface {
                     throw $error;
                 });
             });
-        })->always(function () use (&$client) {
-            if(!$this->transaction) {
-                $client->checkinConnection($this);
-            }
         });
     }
     

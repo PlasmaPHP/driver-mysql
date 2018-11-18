@@ -48,7 +48,11 @@ abstract class PromiseCommand implements CommandInterface {
         });
         
         $this->once('end', function () {
-            $this->deferred->resolve($this->resolveValue);
+            // Let the event loop read the stream buffer before resolving
+            $this->driver->getLoop()->futureTick(function () {
+                $this->deferred->resolve($this->resolveValue);
+                $this->resolveValue = null;
+            });
         });
     }
     
@@ -92,9 +96,11 @@ abstract class PromiseCommand implements CommandInterface {
         $this->finished = true;
         
         if($this->resolveValue !== null) {
-            // Workaround for getting the promise resolved AFTER receiving and processing an error packet,
-            // so we would miss the error packet
-            $this->driver->getLoop()->futureTick(function () use ($throwable) {
+            // Let the event loop read the stream buffer and resolve the promise before emitting
+            // Works around a race condition, where the promise resolves
+            // after receiving an error response packet
+            // and therefore the user misses the error event
+            $this->driver->getLoop()->futureTick(function () use (&$throwable) {
                 $this->emit('error', array($throwable));
             });
             
@@ -128,24 +134,10 @@ abstract class PromiseCommand implements CommandInterface {
     }
     
     /**
-     * Handles query commands on next caller.
-     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
-     * @return void
+     * Whether the sequence ID should be resetted.
+     * @return bool
      */
-    function handleQueryOnNextCaller(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): void {
-        $buffer = $value->getBuffer();
-        $parser = $value->getParser();
-        
-        if($this->resolveValue !== null) {
-            $row = $this->parseResultsetRow($buffer);
-            $this->emit('data', array($row));
-        } else {
-            $field = $this->handleQueryOnNextCallerColumns($buffer, $parser);
-            if($field) {
-                $this->fields[$field->getName()] = $field;
-            }
-        }
-    }
+    abstract function resetSequence(): bool;
     
     /**
      * Handles the column definitions of query commands on next caller.
@@ -157,18 +149,25 @@ abstract class PromiseCommand implements CommandInterface {
         if($this->fieldsCount === null) {
             $fieldCount = $buffer->readIntLength();
             
-            if($fieldCount === 0xFB) {
-                // Handle it on future tick, so we can cleanly finish the buffer of this call
+            if($fieldCount === 0x00) {
                 $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
-                    $localMsg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
-                    $parser->handleMessage($buffer, $localMsg);
+                    $msg = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($parser);
+                    $parser->handleMessage($buffer, $msg);
                 });
                 
                 return null;
-            } elseif($fieldCount === 0x00) {
+            } elseif($fieldCount === 0xFB) {
+                // Handle it on future tick, so we can cleanly finish the buffer of this call
                 $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
-                    $okMsg = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($parser);
-                    $parser->handleMessage($buffer, $okMsg);
+                    $msg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
+                    $parser->handleMessage($buffer, $msg);
+                });
+                
+                return null;
+            } elseif($fieldCount === 0xFF) {
+                $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
+                    $msg = new \Plasma\Drivers\MySQL\Messages\ErrResponseMessage($parser);
+                    $parser->handleMessage($buffer, $msg);
                 });
                 
                 return null;
@@ -187,7 +186,6 @@ abstract class PromiseCommand implements CommandInterface {
      * @return \Plasma\ColumnDefinitionInterface
      */
     static function parseColumnDefinition(\Plasma\BinaryBuffer $buffer): \Plasma\ColumnDefinitionInterface {
-        \Plasma\Drivers\MySQL\Messages\MessageUtility::debug('CD 5 bytes: '.implode(', ', unpack('C*', \substr($buffer->getContents(), 0, 5))));
         $buffer->readStringLength(); // catalog - always "def"
         $database = $buffer->readStringLength();
         

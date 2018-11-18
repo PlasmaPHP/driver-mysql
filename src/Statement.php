@@ -86,6 +86,7 @@ class Statement implements \Plasma\StatementInterface {
      * Please do not rely on the destructor to properly close your statement.
      * ALWAYS explicitely close the statement once you're done.
      * @throws \Plasma\Exception
+     * @codeCoverageIgnore
      */
     function __destruct() {
         if(!$this->closed) {

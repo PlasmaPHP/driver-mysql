@@ -332,15 +332,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                         
                         $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
                         $parse($caller);
-                    } else {
+                    } elseif($this->currentCommand !== null) {
                         $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
                         $this->currentCommand->onNext($caller);
                     }
                     
                     \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Left over buffer: '.$buffer->getSize()) || true));
-                    /*if($buffer->getSize() > 0) {
-                        $this->buffer->prepend($buffer->getContents());
-                    }*/
                     
                     if($this->buffer->getSize() > 0) {
                         \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Scheduling future read with '.$this->buffer->getSize().' bytes') || true));
@@ -412,6 +409,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     }
                 }
             } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
+                \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug(
+                    'Received Error Response Message with message: '.$message->errorMessage
+                ) || true));
+                
                 $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
                 $this->emit('error', array($error));
             }

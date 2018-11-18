@@ -67,7 +67,8 @@ class HandshakeResponseCommand implements CommandInterface {
      * @param string                                           $database
      */
     function __construct(
-        \Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake, int $capability, ?string $plugin, string $user, string $password, string $database
+        \Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake,
+        int $capability, ?string $plugin, string $user, string $password, string $database
     ) {
         $this->parser = $parser;
         $this->handshake = $handshake;

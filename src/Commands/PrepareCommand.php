@@ -57,6 +57,11 @@ class PrepareCommand extends PromiseCommand {
     protected $fields = array();
     
     /**
+     * @var bool
+     */
+    protected $paramsDone = false;
+    
+    /**
      * @var int
      */
     protected $fieldsCount;
@@ -97,8 +102,6 @@ class PrepareCommand extends PromiseCommand {
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
     function onNext($value): void {
-        //var_dump($value); ob_flush();
-        
         if($value instanceof \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage) {
             $this->okResponse = $value;
             $this->fieldsCount = $this->okResponse->numColumns;
@@ -108,16 +111,19 @@ class PrepareCommand extends PromiseCommand {
             
             $parsed = $this->handleQueryOnNextCallerColumns($buffer, $parser);
             
-            if($this->okResponse->numParams >= \count($this->params)) {
-                $this->params[] = $parsed;
-            } elseif($this->okResponse->numColumns >= \count($this->fields)) {
+            if($this->paramsDone) {
                 $this->fields[$parsed->getName()] = $parsed;
             } else {
-                throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received more column definition packets than defined');
+                $this->params[] = $parsed;
             }
         } elseif(
             $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage
         ) {
+            if(!$this->paramsDone) {
+                $this->paramsDone = true;
+                return;
+            }
+            
             $this->finished = true;
             
             $id = $this->okResponse->statementID;

@@ -338,7 +338,7 @@ class DriverTest extends TestCase {
         $res2 = $this->await($prom2);
         $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res2);
         
-        $data = array();
+        $data = null;
         $deferred = new \React\Promise\Deferred();
         
         $res2->once('close', function () use (&$deferred) {
@@ -357,6 +357,89 @@ class DriverTest extends TestCase {
         
         $this->await($deferred->promise());
         $this->assertSame(array('Database' => 'plasma_tmp'), $data);
+    }
+    
+    function testQuerySelectedDatabase() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'SELECT DATABASE()');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = null;
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            $data = $row;
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertSame(array('DATABASE()' => 'information_schema'), $data);
+    }
+    
+    function testQueryConnectionCharset() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema?charset=utf8mb4');
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "character\_set\_%"');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = null;
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            if($row['Variable_name'] === 'character_set_connection') {
+                $data = $row;
+            }
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertSame(array('Variable_name' => 'character_set_connection', 'Value' => 'utf8mb4'), $data);
     }
     
     function testPrepare() {
@@ -385,7 +468,7 @@ class DriverTest extends TestCase {
         $res = $this->await($prom2);
         $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
         
-        $data = array();
+        $data = null;
         $deferred = new \React\Promise\Deferred();
         
         $res->once('close', function () use (&$deferred) {
@@ -397,16 +480,61 @@ class DriverTest extends TestCase {
         });
         
         $res->on('data', function ($row) use (&$data) {
-            $data[] = $row;
+            var_dump($row);
+            if($row['SCHEMA_NAME'] === 'plasma_tmp') {
+                $data = $row;
+            }
         });
         
         $this->await($deferred->promise());
+        $this->assertNotNull($data);
         
-        var_dump($data);
+        $this->await($statement->close());
+        
+        // TODO: maybe remove if statement test succeeds?
+        // Unfortunately the destructor mechanism CAN NOT be tested,
+        // as the destructor runs AFTER the test ends
     }
     
     function testExecute() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->execute($client, 'SELECT * FROM `SCHEMATA` WHERE `SCHEMA_NAME` = ?', array('plasma_tmp'));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = null;
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->once('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            if($row['SCHEMA_NAME'] === 'plasma_tmp') {
+                $data = $row;
+            }
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertNotNull($data);
     }
     
     function createClientMock(): \Plasma\ClientInterface {

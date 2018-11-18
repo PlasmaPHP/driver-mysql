@@ -53,13 +53,11 @@ class StatementExecuteCommand extends QueryCommand {
         $packet = \chr(static::COMMAND_ID);
         $packet .= \Plasma\BinaryBuffer::writeInt4($this->id);
         
-        $packet .= "\0"; // Cursor type flag
+        $packet .= "\x00"; // Cursor type flag
         $packet .= \Plasma\BinaryBuffer::writeInt4(1); // Iteration count is always 1
         
-        $paramCount = \count($this->params);
-        
         $bitmapOffset = \strlen($packet);
-        $packet .= \str_repeat("\0", (($paramCount + 7) >> 3));
+        $packet .= \str_repeat("\x00", ((\count($this->params) + 7) >> 3));
         
         $bound = 0;
         
@@ -74,8 +72,6 @@ class StatementExecuteCommand extends QueryCommand {
                 $bound = 1;
             }
             
-            $unsigned = false;
-            
             try {
                 $manager = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql');
                 $encode = $manager->encodeType($param);
@@ -87,10 +83,9 @@ class StatementExecuteCommand extends QueryCommand {
                 [ $unsigned, $type, $value ] = $this->stdEncodeValue($param);
             }
             
-            $types .= \chr($type);
-            $types .= ($unsigned ? "\x80" : "\0");
-            
+            $types .= \chr($type).($unsigned ? "\x80" : "\x00");
             $values .= $value;
+            var_dump($param, unpack('C*', $value));
         }
         
         $packet .= \chr($bound);
@@ -108,7 +103,7 @@ class StatementExecuteCommand extends QueryCommand {
      * @return bool
      */
     function resetSequence(): bool {
-        return false;
+        return true;
     }
     
     /**
@@ -118,9 +113,6 @@ class StatementExecuteCommand extends QueryCommand {
      * @return array
      */
     protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
-        //var_dump(unpack('C*', $buffer->getContents()));
-        //$buffer = $buffer->read(1); // Skip first byte (header)
-        
         $nullRow = array();
         $i = 0;
         
@@ -138,18 +130,16 @@ class StatementExecuteCommand extends QueryCommand {
         
         /** @var \Plasma\ColumnDefinitionInterface  $column */
         foreach($this->fields as $column) {
-            if(\array_key_exists($columm->getName(), $nullRow)) {
-                $row[$columm->getName()] = $nullRow[$columm->getName()];
+            if(\array_key_exists($column->getName(), $nullRow)) {
+                $row[$column->getName()] = $nullRow[$column->getName()];
                 continue;
             }
             
             $value = $this->stdDecodeBinaryValue($column, $buffer);
+            $parsedValue = $column->parseValue($value);
             
-            try {
-                $strval = (string) $val;
-                $value = $column->parseValue($strval);
-            } catch (\Plasma\Exception $e) {
-                /* Continue regardless of error */
+            if($value !== $parsedValue) {
+                $value = $parsedValue;
             }
             
             $row[$column->getName()] = $value;
@@ -177,7 +167,6 @@ class StatementExecuteCommand extends QueryCommand {
                     $unsigned = true;
                 }
                 
-                // TODO: Check if short, long or long long
                 if($param >= 0 && $param < (1 << 15)) {
                     $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT;
                     $value = \Plasma\BinaryBuffer::writeInt2($param);
@@ -191,13 +180,11 @@ class StatementExecuteCommand extends QueryCommand {
             break;
             case 'double':
                 $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE;
-                $value = \Plasma\BinaryBuffer::writeFloat($param);
+                $value = \Plasma\BinaryBuffer::writeDouble($param);
             break;
             case 'string':
                 $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG_BLOB;
-                
-                $value = \Plasma\BinaryBuffer::writeInt4(\strlen($param));
-                $value .= $param;
+                $value = \Plasma\BinaryBuffer::writeStringLength($param);
             break;
             case 'NULL':
                 $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL;
@@ -337,6 +324,9 @@ class StatementExecuteCommand extends QueryCommand {
                     $value = '0d 00:00:00';
                 }
             break;
+            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL) !== 0):
+                $value = null;
+            break;
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_STRING) !== 0):
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VARCHAR) !== 0):
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VAR_STRING) !== 0):
@@ -351,10 +341,8 @@ class StatementExecuteCommand extends QueryCommand {
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DECIMAL) !== 0):
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NEWDECIMAL) !== 0):
             case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_JSON) !== 0):
+            case ($column->getType() === 'VARSTRING'): // WTF is going on ?! flags = 0, type = VARSTRING
                 $value = $buffer->readStringLength();
-            break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL) !== 0):
-                $value = null;
             break;
             default:
                 throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$column->getType().')');

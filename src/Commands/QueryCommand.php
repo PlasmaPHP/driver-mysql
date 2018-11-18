@@ -82,6 +82,27 @@ class QueryCommand extends PromiseCommand {
     }
     
     /**
+     * Handles query commands on next caller.
+     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
+     * @return void
+     */
+    function handleQueryOnNextCaller(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): void {
+        $buffer = $value->getBuffer();
+        $parser = $value->getParser();
+        
+        if($this->resolveValue !== null) {
+            $row = $this->parseResultsetRow($buffer);
+            var_dump($row);
+            $this->emit('data', array($row));
+        } else {
+            $field = $this->handleQueryOnNextCallerColumns($buffer, $parser);
+            if($field) {
+                $this->fields[$field->getName()] = $field;
+            }
+        }
+    }
+    
+    /**
      * Creates the resolve value and resolves the promise.
      * @return void
      */
