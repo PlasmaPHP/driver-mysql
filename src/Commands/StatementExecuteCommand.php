@@ -107,8 +107,7 @@ class StatementExecuteCommand extends QueryCommand {
     
     /**
      * Parses the binary resultset row and returns the row.
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param \Plasma\BinaryBuffer               $buffer
+     * @param \Plasma\BinaryBuffer  $buffer
      * @return array
      */
     protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
@@ -303,7 +302,7 @@ class StatementExecuteCommand extends QueryCommand {
                     $timestamp = (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP) !== 0);
                     
                     $micro = \str_pad($micro, 6, '0', \STR_PAD_LEFT);
-                    $micro = ($timestamp ? $micro : \number_format($micro, 0, '', ' '));
+                    $micro = ($timestamp ? $micro : \substr($micro, 0, 3).' '.\substr($micro, 3));
                     
                     $value = \sprintf('%d-%d-%d %d:%d:%d'.($micro > 0 ? '.%s' : ''), $year, $month, $day, $hour, $min, $sec, $micro);
                     
@@ -335,7 +334,7 @@ class StatementExecuteCommand extends QueryCommand {
                     }
                     
                     $micro = \str_pad($micro, 6, '0', \STR_PAD_LEFT);
-                    $micro = \number_format($micro, 0, '', ' ');
+                    $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
                     
                     $value = \sprintf('%dd %d:%d:%d'.($micro > 0 ? '.%s' : ''), $days, $hour, $min, $sec, $micro);
                 } else {

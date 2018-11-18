@@ -102,7 +102,7 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
                 if($buffer->getSize() > 0) {
                     $this->sessionInfo = $buffer->readStringLength();
                     
-                    if(($statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
+                    if(($this->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
                         $this->sessionStateChanges = $buffer->readStringLength();
                     }
                 }

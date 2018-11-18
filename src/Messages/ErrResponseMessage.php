@@ -71,10 +71,11 @@ class ErrResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterf
         
         $handshake = $this->parser->getHandshakeMessage();
         if(!$handshake || $this->parser->getState() == \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE) {
-            $exception = new \Plasma\Drivers\MySQL\Messages\ParseException($buffer, $this->errorCode);
+            $exception = new \Plasma\Drivers\MySQL\Messages\ParseException($buffer->getContents(), $this->errorCode);
             $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
             $exception->setBuffer('');
             
+            $buffer->clear();
             throw $exception;
         }
         

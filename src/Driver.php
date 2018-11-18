@@ -79,6 +79,8 @@ class Driver implements \Plasma\DriverInterface {
     
     /**
      * Constructor.
+     * @param \React\EventLoop\LoopInterface  $loop
+     * @param array                           $options
      */
     function __construct(\React\EventLoop\LoopInterface $loop, array $options) {
         $this->validateOptions($options);
@@ -93,7 +95,7 @@ class Driver implements \Plasma\DriverInterface {
     
     /**
      * Returns the event loop.
-     * @var \React\EventLoop\LoopInterface
+     * @return \React\EventLoop\LoopInterface
      */
     function getLoop(): \React\EventLoop\LoopInterface {
         return $this->loop;
@@ -125,6 +127,7 @@ class Driver implements \Plasma\DriverInterface {
     
     /**
      * Connects to the given URI.
+     * @param string  $uri
      * @return \React\Promise\PromiseInterface
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
@@ -410,8 +413,8 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \LogicException  Thrown if the driver does not support quoting.
      * @throws \Plasma\Exception
      */
-    function quote(string $str): string { // TODO
-        throw new \LogicException('Not implemented yet');
+    function quote(string $str): string {
+        throw new \LogicException('Not implemented yet'); // TODO
     }
     
     /**
@@ -463,7 +466,7 @@ class Driver implements \Plasma\DriverInterface {
             return $this->query($client, 'START TRANSACTION');
         })->then(function () use (&$client, $isolation) {
             return (new \Plasma\Transaction($client, $this, $isolation));
-        })->otherwise(function (\Throwable $e) {
+        })->then(null, function (\Throwable $e) {
             $this->transaction = false;
             throw $e;
         });
@@ -686,7 +689,7 @@ class Driver implements \Plasma\DriverInterface {
             \stream_context_set_option($this->connection->stream, 'ssl', $name, $value);
         }
         
-        return $this->encryption->enable($this->connection)->otherwise(function (\Throwable $error) {
+        return $this->encryption->enable($this->connection)->then(null, function (\Throwable $error) {
             $this->connection->close();
             throw new \RuntimeException('Connection failed during TLS handshake: '.$error->getMessage(), $error->getCode());
         });
@@ -726,6 +729,7 @@ class Driver implements \Plasma\DriverInterface {
                     $name = $message->authPluginName;
                     
                     if($name !== null) {
+                        $plugins = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
                         foreach($plugins as $key => $plug) {
                             if($key === $name) {
                                 $plugin = new $plug($this->parser, $message);

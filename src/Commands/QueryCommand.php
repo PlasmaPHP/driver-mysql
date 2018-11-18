@@ -32,11 +32,6 @@ class QueryCommand extends PromiseCommand {
     protected $fields = array();
     
     /**
-     * @var int|null
-     */
-    protected $fieldsCount;
-    
-    /**
      * @var \Plasma\StreamQueryResult|\Plasma\QueryResult|null
      */
     protected $resolveValue;

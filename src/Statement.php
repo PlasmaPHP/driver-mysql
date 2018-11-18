@@ -19,7 +19,7 @@ class Statement implements \Plasma\StatementInterface {
     protected $client;
     
     /**
-     * @var \Plasma\DriverInterface
+     * @var \Plasma\Drivers\MySQL\Driver
      */
     protected $driver;
     
@@ -61,7 +61,7 @@ class Statement implements \Plasma\StatementInterface {
     /**
      * Constructor.
      * @param \Plasma\ClientInterface              $client
-     * @param \Plasma\DriverInterface              $driver
+     * @param \Plasma\Drivers\MySQL\Driver         $driver
      * @param mixed                                $id
      * @param string                               $query
      * @param string                               $rQuery
@@ -69,7 +69,9 @@ class Statement implements \Plasma\StatementInterface {
      * @param \Plasma\ColumnDefinitionInterface[]  $params
      * @param \Plasma\ColumnDefinitionInterface[]  $columns
      */
-    function __construct(\Plasma\ClientInterface $client, \Plasma\DriverInterface $driver, $id, string $query, string $rQuery, array $rParams, array $params, array $columns) {
+    function __construct(
+        \Plasma\ClientInterface $client, \Plasma\Drivers\MySQL\Driver $driver, $id, string $query, string $rQuery, array $rParams, array $params, array $columns
+    ) {
         $this->client = $client;
         $this->driver = $driver;
         

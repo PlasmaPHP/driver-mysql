@@ -38,6 +38,7 @@ class SSLRequestCommand implements CommandInterface {
      */
     function __construct(\Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake, int $capability) {
         $this->handshake = $handshake;
+        $this->capability = $capability;
     }
     
     /**

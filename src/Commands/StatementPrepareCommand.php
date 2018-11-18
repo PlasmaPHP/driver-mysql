@@ -62,11 +62,6 @@ class StatementPrepareCommand extends PromiseCommand {
     protected $paramsDone = false;
     
     /**
-     * @var int
-     */
-    protected $fieldsCount;
-    
-    /**
      * @var \Plasma\StatementInterface|null
      */
     protected $resolveValue;

@@ -46,7 +46,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
         $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
         
         if($filesystem !== null) {
-            $filesystem->file($buffer->getContents())->getContents()->otherwise(function () {
+            $filesystem->file($buffer->getContents())->getContents()->then(null, function () {
                 return '';
             })->then(function (string $content) {
                 $this->sendFile($content);
@@ -81,8 +81,9 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Sends the contents to the server.
      * @param string $content
+     * @return void
      */
-    protected function sendFile(string $content) {
+    protected function sendFile(string $content): void {
         $this->parser->sendPacket($content);
         $this->parser->sendPacket('');
     }

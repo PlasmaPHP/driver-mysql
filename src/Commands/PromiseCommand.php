@@ -37,6 +37,11 @@ abstract class PromiseCommand implements CommandInterface {
     protected $finished = false;
     
     /**
+     * @var int|null
+     */
+    protected $fieldsCount;
+    
+    /**
      * Constructor.
      * @param \Plasma\DriverInterface  $driver
      */
@@ -65,7 +70,7 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Get the promise.
-     * @var \React\Promise\PromiseInterface
+     * @return \React\Promise\PromiseInterface
      */
     function getPromise(): \React\Promise\PromiseInterface {
         return $this->deferred->promise();
@@ -219,8 +224,7 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Parses the text resultset row and returns the row.
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param \Plasma\BinaryBuffer               $buffer
+     * @param \Plasma\BinaryBuffer  $buffer
      * @return array
      */
     protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
@@ -247,11 +251,11 @@ abstract class PromiseCommand implements CommandInterface {
     /**
      * Standard decode value, if type extensions failed.
      * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param string                             $param
+     * @param string|null                        $param
      * @return mixed
      * @throws \Plasma\Exception
      */
-    protected function stdDecodeValue(\Plasma\ColumnDefinitionInterface $column, string $param) {
+    protected function stdDecodeValue(\Plasma\ColumnDefinitionInterface $column, $param) {
         $flags = $column->getFlags();
         
         if($param !== null && ($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) === 0) {

@@ -316,7 +316,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/plasma_tmp');
         $this->await($prom);
         
         $client = $this->createClientMock();
@@ -326,7 +326,7 @@ class DriverTest extends TestCase {
             ->method('checkinConnection')
             ->with($driver);
         
-        $prom = $driver->query($client, 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`');
+        $prom = $driver->query($client, 'CREATE TABLE IF NOT EXISTS `tbl_tmp` (`test` VARCHAR(50) NOT NULL) ENGINE = InnoDB');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         
         $res = $this->await($prom);

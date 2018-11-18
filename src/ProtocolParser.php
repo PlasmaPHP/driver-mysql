@@ -193,6 +193,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Sends a packet to the server.
+     * @param string  $packet
      * @return void
      */
     function sendPacket(string $packet): void {
@@ -215,7 +216,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     function setParseCallback(callable $callback): void {
-        $this->parseCallback($callback);
+        $this->parseCallback = $callback;
     }
     
     /**
@@ -391,7 +392,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      */
     function handleMessage(\Plasma\BinaryBuffer $buffer, \Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
         try {
-            $buffer = $message->parseMessage($buffer, $this);
+            $buffer = $message->parseMessage($buffer);
             if(!$buffer) {
                 \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned handle (unsufficent buffer length)') || true));
                 return;

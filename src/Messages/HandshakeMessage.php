@@ -128,6 +128,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     
     /**
      * Parses the message as Handshake V10.
+     * @param \Plasma\BinaryBuffer  $buffer
      * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      */
