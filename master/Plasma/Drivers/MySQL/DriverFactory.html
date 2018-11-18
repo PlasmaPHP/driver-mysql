@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="index, follow, all" />
+    <title>Plasma\Drivers\MySQL\DriverFactory | driver-mysql</title>
+
+            <link rel="stylesheet" type="text/css" href="../../../css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/bootstrap-theme.min.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/sami.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/prism.css">
+        <script src="../../../js/jquery-1.11.1.min.js"></script>
+        <script src="../../../js/bootstrap.min.js"></script>
+        <script src="../../../js/typeahead.min.js"></script>
+        <script src="../../../sami.js"></script>
+        <script src="../../../js/prism.js"></script>
+        <meta name="MobileOptimized" content="width">
+        <meta name="HandheldFriendly" content="true">
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    
+    
+    </head>
+
+    <body id="class" data-name="class:Plasma_Drivers_MySQL_DriverFactory" data-root-path="../../../">
+            <div id="content">
+        <div id="left-column">
+                <div id="control-panel">
+                <script>
+            $('option[data-version="'+window.projectVersion+'"]').prop('selected', true);
+        </script>
+        <form id="search-form" action="../../../search.html" method="GET">
+            <span class="glyphicon glyphicon-search"></span>
+            <input name="search"
+                   class="typeahead form-control"
+                   type="search"
+                   placeholder="Search">
+        </form>
+    </div>
+
+                <div id="api-tree"></div>
+
+        </div>
+        <div id="right-column">
+                <nav id="site-nav" class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-elements">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="../../../index.html">driver-mysql</a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar-elements">
+                <ul class="nav navbar-nav">
+                    <li><a href="../../../classes.html">Classes</a></li>
+                                                                <li><a href="../../../namespaces.html">Namespaces</a></li>
+                                        <li><a href="../../../interfaces.html">Interfaces</a></li>
+                    <li><a href="../../../traits.html">Traits</a></li>
+                    <li><a href="../../../doc-index.html">Index</a></li>
+                    <li><a href="../../../search.html">Search</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+                        <div class="namespace-breadcrumbs">
+            <ol class="breadcrumb">
+                <li><span class="label label-default">class</span></li>
+                        <li><a href="../../../Plasma.html">Plasma</a></li><li class="backslash">\</li><li><a href="../../../Plasma/Drivers.html">Drivers</a></li><li class="backslash">\</li><li><a href="../../../Plasma/Drivers/MySQL.html">MySQL</a></li><li class="backslash">\</li><li>DriverFactory</li>
+            </ol>
+        </div>
+                <div id="page-content">
+                
+    <div class="page-header">
+        <h1>
+            DriverFactory
+                
+        </h1>
+    </div>
+
+    <p>    class
+    <strong>DriverFactory</strong>        implements
+        <abbr title="Plasma\DriverFactoryInterface">DriverFactoryInterface</abbr>        (<a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php" target="_blank">View source</a>)
+</p>
+
+        
+    
+
+            <div class="description">
+            <p>The Driver Factory is responsible for creating the driver correctly.</p>                                </div>
+    
+    
+    
+    
+            <h2>Methods</h2>
+
+            <div class="container-fluid underlined">
+                    <div class="row">
+                <div class="col-md-2 type">
+                    
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method___construct">__construct</a>(<abbr title="React\EventLoop\LoopInterface">LoopInterface</abbr> $loop, array $options)
+        
+                                            <p>Constructor.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    static&nbsp;void
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_addAuthPlugin">addAuthPlugin</a>(string|int $condition, string $classname)
+        
+                                            <p>Adds an auth plugin. <code>$condition</code> is either an int (for server capabilities), or a string (for auth plugin name).</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    <abbr title="Plasma\DriverInterface">DriverInterface</abbr>
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_createDriver">createDriver</a>()
+        
+                                            <p>Creates a new driver instance.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    static&nbsp;array
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_getAuthPlugins">getAuthPlugins</a>()
+        
+                                            <p>Get the registered auth plugins.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    static&nbsp;<abbr title="Plasma\Drivers\MySQL\React\Filesystem\FilesystemInterface">FilesystemInterface</abbr>|null
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_getFilesystem">getFilesystem</a>()
+        
+                                            <p>Get the React Filesystem, or null. The filesystem must be set by the user, in order to not get <code>null</code>.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    static&nbsp;void
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_setFilesystem">setFilesystem</a>(<abbr title="React\Filesystem\FilesystemInterface">FilesystemInterface</abbr> $filesystem)
+        
+                                            <p>Set the React Filesystem to use.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
+            </div>
+
+
+        <h2>Details</h2>
+
+            <div id="method-details">
+                    <div class="method-item">
+                    <h3 id="method___construct">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L55">line 55</a></div>
+        <code>                    
+    <strong>__construct</strong>(<abbr title="React\EventLoop\LoopInterface">LoopInterface</abbr> $loop, array $options)
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Constructor.</p>                    <p>The driver supports the following options:</p>
+
+<pre><code>array(
+    'connector' =&gt; ConnectorInstance, (a custom connector instance, which MUST return a `Connection` instance from the `react/socket` package)
+    'tls.context' =&gt; array, (socket TLS context options)
+    'tls.force' =&gt; bool, (whether non-localhost connections are forced to use TLS, defaults to true)
+    'tls.forceLocal' =&gt; bool, (whether localhost connections are forced to use TLS, defaults to false)
+)
+</code></pre>
+</p>                            </div>
+                <div class="tags">
+                            <h4>Parameters</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td><abbr title="React\EventLoop\LoopInterface">LoopInterface</abbr></td>
+                <td>$loop</td>
+                <td></td>
+            </tr>
+                    <tr>
+                <td>array</td>
+                <td>$options</td>
+                <td></td>
+            </tr>
+            </table>
+
+            
+            
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_addAuthPlugin">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L79">line 79</a></div>
+        <code>        static            void
+    <strong>addAuthPlugin</strong>(string|int $condition, string $classname)
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Adds an auth plugin. <code>$condition</code> is either an int (for server capabilities), or a string (for auth plugin name).</p>                                                </div>
+                <div class="tags">
+                            <h4>Parameters</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td>string|int</td>
+                <td>$condition</td>
+                <td></td>
+            </tr>
+                    <tr>
+                <td>string</td>
+                <td>$classname</td>
+                <td>A class implementing <code>AuthPluginInterface</code>.</td>
+            </tr>
+            </table>
+
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td>void</td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+                            <h4>Exceptions</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td><a href="https://secure.php.net/InvalidArgumentException" target="_blank">InvalidArgumentException</a></td>
+                <td></td>
+            </tr>
+            </table>
+
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_createDriver">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L68">line 68</a></div>
+        <code>                    <abbr title="Plasma\DriverInterface">DriverInterface</abbr>
+    <strong>createDriver</strong>()
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Creates a new driver instance.</p>                                                </div>
+                <div class="tags">
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td><abbr title="Plasma\DriverInterface">DriverInterface</abbr></td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_getAuthPlugins">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L95">line 95</a></div>
+        <code>        static            array
+    <strong>getAuthPlugins</strong>()
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Get the registered auth plugins.</p>                                                </div>
+                <div class="tags">
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td>array</td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_getFilesystem">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L112">line 112</a></div>
+        <code>        static            <abbr title="Plasma\Drivers\MySQL\React\Filesystem\FilesystemInterface">FilesystemInterface</abbr>|null
+    <strong>getFilesystem</strong>()
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Get the React Filesystem, or null. The filesystem must be set by the user, in order to not get <code>null</code>.</p>                                                </div>
+                <div class="tags">
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td><abbr title="Plasma\Drivers\MySQL\React\Filesystem\FilesystemInterface">FilesystemInterface</abbr>|null</td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_setFilesystem">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L104">line 104</a></div>
+        <code>        static            void
+    <strong>setFilesystem</strong>(<abbr title="React\Filesystem\FilesystemInterface">FilesystemInterface</abbr> $filesystem)
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Set the React Filesystem to use.</p>                                                </div>
+                <div class="tags">
+                            <h4>Parameters</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td><abbr title="React\Filesystem\FilesystemInterface">FilesystemInterface</abbr></td>
+                <td>$filesystem</td>
+                <td></td>
+            </tr>
+            </table>
+
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td>void</td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+            </div>
+
+    
+            </div>
+                <div id="footer">
+        Generated by <a href="http://sami.sensiolabs.org/">Sami, the API Documentation Generator</a>.
+    </div>
+
+        </div>
+    </div>
+    </body>
+
+</html>
