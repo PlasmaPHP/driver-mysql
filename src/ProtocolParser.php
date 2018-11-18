@@ -12,6 +12,7 @@ namespace Plasma\Drivers\MySQL;
 /**
  * The MySQL Protocol Parser.
  * @internal
+ * @codeCoverageIgnore
  */
 class ProtocolParser implements \Evenement\EventEmitterInterface {
     use \Evenement\EventEmitterTrait;

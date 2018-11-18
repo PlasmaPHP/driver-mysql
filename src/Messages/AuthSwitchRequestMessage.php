@@ -12,6 +12,7 @@ namespace Plasma\Drivers\MySQL\Messages;
 /**
  * Represents a Auth Switch Request Message.
  * @internal
+ * @codeCoverageIgnore
  */
 class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
