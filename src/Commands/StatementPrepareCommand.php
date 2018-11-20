@@ -67,6 +67,11 @@ class StatementPrepareCommand extends PromiseCommand {
     protected $resolveValue;
     
     /**
+     * @var bool
+     */
+    protected $deprecatedEOF;
+    
+    /**
      * Constructor.
      * @param \Plasma\ClientInterface  $client
      * @param \Plasma\DriverInterface  $driver
@@ -78,6 +83,7 @@ class StatementPrepareCommand extends PromiseCommand {
         $this->client = $client;
         $this->driver = $driver;
         $this->query = $query;
+        $this->deprecatedEOF = (($driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
         
         [ 'query' => $this->rewrittenQuery, 'parameters' => $this->rewrittenParams ] = \Plasma\Utility::parseParameters($this->query, '?');
     }
@@ -111,6 +117,14 @@ class StatementPrepareCommand extends PromiseCommand {
             } else {
                 $this->params[] = $parsed;
             }
+            
+            if($this->deprecatedEOF) {
+                if($this->paramsDone && $this->fieldsCount <= \count($this->fields)) {
+                    $this->createResolve();
+                } elseif($this->okResponse->numParams <= \count($this->params) && $this->resolveValue === null) {
+                    $this->paramsDone = true;
+                }
+            }
         } elseif(
             $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage
         ) {
@@ -119,14 +133,7 @@ class StatementPrepareCommand extends PromiseCommand {
                 return;
             }
             
-            $this->finished = true;
-            
-            $id = $this->okResponse->statementID;
-            $queryr = $this->rewrittenQuery;
-            $paramsr = $this->rewrittenParams;
-            
-            $this->resolveValue = new \Plasma\Drivers\MySQL\Statement($this->client, $this->driver, $id, $this->query, $queryr, $paramsr, $this->params, $this->fields);
-            $this->deferred->resolve($this->resolveValue);
+            $this->createResolve();
         } else {
             throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received value of type '
                 .(\is_object($value) ? \get_class($value) : \gettype($value)).' it can not handle');
@@ -139,5 +146,20 @@ class StatementPrepareCommand extends PromiseCommand {
      */
     function resetSequence(): bool {
         return true;
+    }
+    
+    /**
+     * Creates the resolve value.
+     * @return void
+     */
+    protected function createResolve(): void {
+        $this->finished = true;
+        
+        $id = $this->okResponse->statementID;
+        $queryr = $this->rewrittenQuery;
+        $paramsr = $this->rewrittenParams;
+        
+        $this->resolveValue = new \Plasma\Drivers\MySQL\Statement($this->client, $this->driver, $id, $this->query, $queryr, $paramsr, $this->params, $this->fields);
+        $this->deferred->resolve($this->resolveValue);
     }
 }

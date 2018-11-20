@@ -37,6 +37,11 @@ class QueryCommand extends PromiseCommand {
     protected $resolveValue;
     
     /**
+     * @var bool
+     */
+    protected $deprecatedEOF;
+    
+    /**
      * Constructor.
      * @param \Plasma\DriverInterface  $driver
      * @param string                   $query
@@ -46,6 +51,7 @@ class QueryCommand extends PromiseCommand {
         
         $this->driver = $driver;
         $this->query = $query;
+        $this->deprecatedEOF = (($driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
     }
     
     /**
@@ -92,6 +98,10 @@ class QueryCommand extends PromiseCommand {
             $field = $this->handleQueryOnNextCallerColumns($buffer, $parser);
             if($field) {
                 $this->fields[$field->getName()] = $field;
+            }
+            
+            if($this->deprecatedEOF && $this->fieldsCount <= \count($this->fields)) {
+                $this->createResolve();
             }
         }
     }

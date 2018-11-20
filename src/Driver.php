@@ -523,10 +523,10 @@ class Driver implements \Plasma\DriverInterface {
      */
     function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
-        // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue') || true));
+        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue') || true));
         
         if($this->parser && $this->busy === static::STATE_IDLE) {
-            // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser') || true));
+            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser') || true));
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
@@ -562,20 +562,20 @@ class Driver implements \Plasma\DriverInterface {
         /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
-        // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command)) || true));
+        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command)) || true));
         
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
             
             $command->once('error', function () use (&$command) {
-                // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored') || true));
+                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
             });
             
             $command->once('end', function () use (&$command) {
-                // for debugging - \assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended') || true));
+                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
