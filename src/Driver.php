@@ -344,6 +344,14 @@ class Driver implements \Plasma\DriverInterface {
     function query(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        } elseif($this->connectionState !== \Plasma\DriverInterface::CONNECTION_OK) {
+            if($this->connectPromise !== null) {
+                return $this->connectPromise->then(function () use (&$client, &$query) {
+                    return $this->query($client, $query);
+                });
+            }
+            
+            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
@@ -370,6 +378,14 @@ class Driver implements \Plasma\DriverInterface {
     function prepare(\Plasma\ClientInterface $client, string $query): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        } elseif($this->connectionState !== \Plasma\DriverInterface::CONNECTION_OK) {
+            if($this->connectPromise !== null) {
+                return $this->connectPromise->then(function () use (&$client, &$query) {
+                    return $this->prepare($client, $query);
+                });
+            }
+            
+            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\StatementPrepareCommand($client, $this, $query);
@@ -392,6 +408,14 @@ class Driver implements \Plasma\DriverInterface {
     function execute(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        } elseif($this->connectionState !== \Plasma\DriverInterface::CONNECTION_OK) {
+            if($this->connectPromise !== null) {
+                return $this->connectPromise->then(function () use (&$client, &$query, $params) {
+                    return $this->execute($client, $query, $params);
+                });
+            }
+            
+            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
         }
         
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
