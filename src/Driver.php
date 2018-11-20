@@ -43,6 +43,11 @@ class Driver implements \Plasma\DriverInterface {
     protected $encryption;
     
     /**
+     * @var \React\Promise\Promise|null
+     */
+    protected $connectPromise;
+    
+    /**
      * @var \React\Socket\Connection
      */
     protected $connection;
@@ -132,7 +137,11 @@ class Driver implements \Plasma\DriverInterface {
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
         if($this->goingAway || $this->connectionState === \Plasma\DriverInterface::CONNECTION_UNUSABLE) {
-            return \React\Promise\resolve((new \Plasma\Exception('Connection is going away or unusable')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away or unusable')));
+        } elseif($this->connectionState === \Plasma\DriverInterface::CONNECTION_OK) {
+            return \React\Promise\resolve();
+        } elseif($this->connectPromise !== null) {
+            return $this->connectPromise;
         }
         
         $uri = 'mysql://'.\ltrim($uri, 'mysql://');
@@ -157,7 +166,7 @@ class Driver implements \Plasma\DriverInterface {
             $collate = null;
         }
         
-        $connect =  $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
+        $this->connectPromise =  $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
             // See description of property encryption
             if(!($connection instanceof \React\Socket\Connection)) {
                 throw new \LogicException('Custom connection class is NOT supported yet (encryption limitation)');
@@ -207,7 +216,7 @@ class Driver implements \Plasma\DriverInterface {
         });
         
         if($charset) {
-            $connect = $connect->then(function () use ($charset, $collate) {
+            $this->connectPromise = $this->connectPromise->then(function () use ($charset, $collate) {
                 $query = 'SET NAMES "'.$charset.'"'.($collate ? ' COLLATE "'.$collate.'"' : '');
                 
                 $cmd = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
@@ -215,7 +224,7 @@ class Driver implements \Plasma\DriverInterface {
             });
         }
         
-        return $connect;
+        return $this->connectPromise;
     }
     
     /**
