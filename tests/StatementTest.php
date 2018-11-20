@@ -31,10 +31,7 @@ class StatementTest extends TestCase {
         
         $this->driver
             ->expects($this->once())
-            ->method('executeCommand')
-            ->will($this->returnCallback(function (\Plasma\CommandInterface $command) {
-                $command->onComplete();
-            }));
+            ->method('executeCommand');
         
         $close = $statement->close();
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
@@ -47,6 +44,7 @@ class StatementTest extends TestCase {
     
     function testGetParams() {
         $statement = $this->getStatement();
+        
         $this->assertEquals(array(
             (new \Plasma\ColumnDefinition('plasma_tmp', 'test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         ), $statement->getParams());
@@ -54,9 +52,68 @@ class StatementTest extends TestCase {
     
     function testGetColumns() {
         $statement = $this->getStatement();
+        
         $this->assertEquals(array(
             (new \Plasma\ColumnDefinition('plasma_tmp', 'test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         ), $statement->getColumns());
+    }
+    
+    function testExecute() {
+        $statement = $this->getStatement();
+        
+        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        
+        $this->driver
+            ->expects($this->exactly(2)) // +1 close
+            ->method('executeCommand');
+        
+        $this->driver
+            ->expects($this->once())
+            ->method('getHandshake')
+            ->will($this->returnValue((new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser))));
+        
+        $exec = $statement->execute(array(':id' => 5));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $exec);
+    }
+    
+    function testExecuteAlreadyClosed() {
+        $statement = $this->getStatement();
+        
+        $this->driver
+            ->expects($this->once())
+            ->method('executeCommand');
+        
+        $close = $statement->close();
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        
+        $this->assertTrue($statement->isClosed());
+        
+        $this->expectException(\Plasma\Exception::class);
+        $statement->execute(array(':id' => 5));
+    }
+    
+    function testExecuteMissingParams() {
+        $statement = $this->getStatement();
+        
+        $this->driver
+            ->expects($this->once()) // 1 close
+            ->method('executeCommand');
+        
+        $this->expectException(\Plasma\Exception::class);
+        $statement->execute(array());
+    }
+    
+    function testExecuteUnknownParam() {
+        $statement = $this->getStatement();
+        
+        $this->driver
+            ->expects($this->once()) // 1 close
+            ->method('executeCommand');
+        
+        $this->expectException(\Plasma\Exception::class);
+        $statement->execute(array(':help' => 1252));
     }
     
     function getStatement(): \Plasma\Drivers\MySQL\Statement {
