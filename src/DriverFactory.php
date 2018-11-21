@@ -98,10 +98,10 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     
     /**
      * Set the React Filesystem to use.
-     * @param \React\Filesystem\FilesystemInterface  $filesystem
+     * @param \React\Filesystem\FilesystemInterface|null  $filesystem
      * @return void
      */
-    static function setFilesystem(\React\Filesystem\FilesystemInterface $filesystem): void {
+    static function setFilesystem(?\React\Filesystem\FilesystemInterface $filesystem): void {
         static::$filesystem = $filesystem;
     }
     

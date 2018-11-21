@@ -45,7 +45,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
         
-        if($filesystem) {
+        if($filesystem !== null) {
             $filesystem->file($buffer->getContents())->getContents()->then(function (string $content) {
                 $this->sendFile($content);
             }, function () {

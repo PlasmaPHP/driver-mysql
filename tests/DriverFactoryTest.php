@@ -40,6 +40,11 @@ class DriverFactoryTest extends TestCase {
         
         $fs2 = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
         $this->assertSame($filesystem, $fs2);
+        
+        $this->assertNull(\Plasma\Drivers\MySQL\DriverFactory::setFilesystem(null));
+        
+        $fs3 = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
+        $this->assertNull($fs3);
     }
     
     function testAddAuthPlugin() {
