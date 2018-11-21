@@ -9,23 +9,23 @@
 
 namespace Plasma\Drivers\MySQL\Tests;
 
-class ResetConnectionCommandTest extends TestCase {
+class QuitCommandTest extends TestCase {
     function testGetEncodedMessage() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         $this->assertFalse($command->hasFinished());
         
-        $this->assertSame("\x1F", $command->getEncodedMessage());
+        $this->assertSame("\x01", $command->getEncodedMessage());
         $this->assertTrue($command->hasFinished());
     }
     
     function testSetParserState() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         
         $this->assertSame(-1, $command->setParserState());
     }
     
     function testOnComplete() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         
         $deferred = new \React\Promise\Deferred();
         
@@ -40,7 +40,7 @@ class ResetConnectionCommandTest extends TestCase {
     }
     
     function testOnError() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         
         $deferred = new \React\Promise\Deferred();
         
@@ -56,17 +56,17 @@ class ResetConnectionCommandTest extends TestCase {
     }
     
     function testOnNext() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         $this->assertNull($command->onNext(null));
     }
     
     function testWaitForCompletion() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         $this->assertTrue($command->waitForCompletion());
     }
     
     function testResetSequence() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         $this->assertTrue($command->resetSequence());
     }
 }

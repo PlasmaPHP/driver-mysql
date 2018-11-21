@@ -14,7 +14,7 @@ class StatisticsCommandTest extends TestCase {
         $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
         $this->assertFalse($command->hasFinished());
         
-        $this->assertSame(\chr(0x09), $command->getEncodedMessage());
+        $this->assertSame("\x09", $command->getEncodedMessage());
         $this->assertFalse($command->hasFinished());
     }
     
