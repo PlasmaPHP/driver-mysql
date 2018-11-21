@@ -21,7 +21,7 @@ class QuitCommandTest extends TestCase {
     function testSetParserState() {
         $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         
-        $this->assertSame(-1, $command->setParserState());
+        $this->assertSame(0, $command->setParserState());
     }
     
     function testOnComplete() {
