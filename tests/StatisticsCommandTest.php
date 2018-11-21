@@ -27,6 +27,10 @@ class StatisticsCommandTest extends TestCase {
     function testOnComplete() {
         $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
         
+        $command->on('end', function () {
+            throw new \LogicException('Unexpected end event was emitted');
+        });
+        
         $this->assertNull($command->onComplete());
         $this->assertTrue($command->hasFinished());
     }

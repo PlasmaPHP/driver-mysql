@@ -29,12 +29,14 @@ class ResetConnectionCommandTest extends TestCase {
         
         $deferred = new \React\Promise\Deferred();
         
-        $command->on('end', function () use (&$deferred) {
-            $deferred->resolve();
+        $command->on('end', function ($a = null) use (&$deferred) {
+            $deferred->resolve($a);
         });
         
         $command->onComplete();
-        $this->await($deferred->promise(), 0.1);
+        
+        $a = $this->await($deferred->promise(), 0.1);
+        $this->assertNull($a);
     }
     
     function testOnError() {
@@ -55,7 +57,7 @@ class ResetConnectionCommandTest extends TestCase {
     
     function testOnNext() {
         $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
-        $this->assertNull($command->onNext());
+        $this->assertNull($command->onNext(null));
     }
     
     function testWaitForCompletion() {
