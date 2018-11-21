@@ -82,10 +82,14 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        
+        $prom2 = $this->connect($driver, 'localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
     }
     
     function testConnectWithPort() {
@@ -93,7 +97,11 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $prom2 = $this->connect($driver, 'localhost');
+        $this->assertSame($prom, $prom2);
         
         $this->await($prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
@@ -104,11 +112,23 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $driver->connect('root:abc-never@localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->expectException(\Plasma\Exception::class);
         $this->expectExceptionMessageRegExp('/^Access denied for user/i');
         
+        $this->await($prom);
+    }
+    
+    function testConnectInvalidHost() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $driver->connect('');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $this->expectException(\InvalidArgumentException::class);
         $this->await($prom);
     }
     
@@ -121,6 +141,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
@@ -136,6 +157,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
@@ -151,6 +173,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
@@ -166,6 +189,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->expectException(\Plasma\Exception::class);
@@ -207,6 +231,9 @@ class DriverTest extends TestCase {
         
         $this->await($promC);
         $this->await($prom2);
+        
+        $prom3 = $driver->close();
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom3);
     }
     
     function testQuit() {
@@ -276,6 +303,32 @@ class DriverTest extends TestCase {
         $this->await($prom3);
         
         $this->assertFalse($driver->isInTransaction());
+    }
+    
+    function testAlreadyInTransaction() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->await($prom);
+        
+        $this->assertFalse($driver->isInTransaction());
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->never())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom2 = $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        
+        $transaction = $this->await($prom2);
+        $this->assertInstanceof(\Plasma\TransactionInterface::class, $transaction);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
     }
     
     function testRunCommand() {
@@ -540,6 +593,169 @@ class DriverTest extends TestCase {
         $this->loop->addTimer(2, array($deferredT, 'resolve'));
         
         $this->await($deferredT->promise());
+    }
+    
+    function testGoingAwayConnect() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        
+        $connect = $driver->connect('whatever');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $connect);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($connect, 0.1);
+    }
+    
+    function testGoingAwayStreamConsumption() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertFalse($driver->resumeStreamConsumption());
+        $this->assertFalse($driver->pauseStreamConsumption());
+        
+        $this->assertNull($driver->quit());
+        
+        $this->assertFalse($driver->resumeStreamConsumption());
+        $this->assertFalse($driver->pauseStreamConsumption());
+    }
+    
+    function testGoingAwayClose() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        
+        $close = $driver->close();
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        
+        $this->await($close, 0.1);
+    }
+    
+    function testGoingAwayQuit() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        $this->assertNull($driver->quit());
+    }
+    
+    function testGoingAwayQuery() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        $client = $this->createClientMock();
+        
+        $query = $driver->query($client, 'whatever');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($query, 0.1);
+    }
+    
+    function testGoingAwayPrepare() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        $client = $this->createClientMock();
+        
+        $query = $driver->prepare($client, 'whatever');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($query, 0.1);
+    }
+    
+    function testGoingAwayExecute() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        $client = $this->createClientMock();
+        
+        $query = $driver->execute($client, 'whatever');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($query, 0.1);
+    }
+    
+    function testGoingAwayBeginTransaction() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        $client = $this->createClientMock();
+        
+        $query = $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($query, 0.1);
+    }
+    
+    function testGoingAwayRunCommand() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        
+        $cmd = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $client = $this->createClientMock();
+        
+        $command = $driver->runCommand($client, $cmd);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $command);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($command, 0.1);
+    }
+    
+    function testUnconnectedQuery() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        
+        $client = $this->createClientMock();
+        $query = $driver->query($client, 'whatever');
+    }
+    
+    function testUnconnectedPrepare() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        
+        $client = $this->createClientMock();
+        $query = $driver->prepare($client, 'whatever');
+    }
+    
+    function testUnconnectedExecute() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        
+        $client = $this->createClientMock();
+        $query = $driver->execute($client, 'whatever');
     }
     
     function createClientMock(): \Plasma\ClientInterface {

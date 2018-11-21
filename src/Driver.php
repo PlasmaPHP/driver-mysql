@@ -137,7 +137,7 @@ class Driver implements \Plasma\DriverInterface {
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
         if($this->goingAway || $this->connectionState === \Plasma\DriverInterface::CONNECTION_UNUSABLE) {
-            return \React\Promise\reject((new \Plasma\Exception('Connection is going away or unusable')));
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         } elseif($this->connectionState === \Plasma\DriverInterface::CONNECTION_OK) {
             return \React\Promise\resolve();
         } elseif($this->connectPromise !== null) {
@@ -233,7 +233,7 @@ class Driver implements \Plasma\DriverInterface {
      * @return bool  Whether the operation was successful.
      */
     function pauseStreamConsumption(): bool {
-        if($this->goingAway) {
+        if($this->connection === null || $this->goingAway) {
             return false;
         }
         
@@ -247,7 +247,7 @@ class Driver implements \Plasma\DriverInterface {
      * @return bool  Whether the operation was successful.
      */
     function resumeStreamConsumption(): bool {
-        if($this->goingAway) {
+        if($this->connection === null || $this->goingAway) {
             return false;
         }
         
