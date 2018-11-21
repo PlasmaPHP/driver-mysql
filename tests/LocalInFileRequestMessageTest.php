@@ -28,15 +28,19 @@ class LocalInFileRequestMessageTest extends TestCase {
             ->getMock();
         
         $parser
-            ->expects($this->once())
+            ->expects($this->at(0))
+            ->method('sendPacket')
             ->with(\file_get_contents(__FILE__));
         
         $parser
-            ->expects($this->once())
+            ->expects($this->at(1))
+            ->method('sendPacket')
             ->with('');
         
         $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
-        $buffer = new \Plasma\BinaryBuffer(__FILE__);
+        
+        $buffer = new \Plasma\BinaryBuffer();
+        $buffer->append(__FILE__);
         
         $message->parseMessage($buffer);
     }

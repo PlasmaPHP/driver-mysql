@@ -46,16 +46,16 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
         $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
         
         if($filesystem !== null) {
-            $filesystem->file($buffer->getContents())->getContents()->then(null, function () {
-                return '';
-            })->then(function (string $content) {
+            $filesystem->file($buffer->getContents())->getContents()->then(function (string $content) {
                 $this->sendFile($content);
+            }, function () {
+                $this->parser->sendPacket('');
             });
         } else {
             if(\file_exists($buffer->getContents())) {
                 $this->sendFile(\file_get_contents($buffer->getContents()));
             } else {
-                $this->sendFile('');
+                $this->parser->sendPacket('');
             }
         }
         
