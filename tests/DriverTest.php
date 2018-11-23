@@ -831,6 +831,8 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
         $prep = $driver->execute(
             $client,
             'INSERT INTO `test_strings` VALUES ('.\implode(', ', \array_fill(0, 18, '?')).')',
@@ -1321,6 +1323,8 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
         $prep = $driver->execute(
             $client,
             'INSERT INTO `test_ints` VALUES ('.\implode(', ', \array_fill(0, 6, '?')).')',
@@ -1437,6 +1441,8 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
         $prep = $driver->execute(
             $client,
             'INSERT INTO `test_floats` VALUES (?, ?)',
@@ -1484,6 +1490,8 @@ class DriverTest extends TestCase {
         $this->await($prom);
         
         $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
         
         $prep = $driver->execute(
             $client,

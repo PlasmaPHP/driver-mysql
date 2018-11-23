@@ -154,7 +154,7 @@ class CapabilityFlags {
     const CLIENT_SESSION_TRACK = 8388608;
     
     /**
-     * Deprecates EOF packet. Replaced by OK packet.
+     * Deprecates EOF packet.
      * @var int
      * @source
      */
