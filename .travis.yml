@@ -38,5 +38,23 @@ install:
 
 script:
   - mysql -e 'CREATE DATABASE IF NOT EXISTS `plasma_tmp`'
+  - mysql -e 'CREATE TABLE `test_strings` (
+        `testcol1` CHAR(20) NOT NULL , `testcol2` VARCHAR(20) NOT NULL ,
+        `testcol3` TINYTEXT NOT NULL , `testcol4` TEXT NOT NULL , `testcol5` MEDIUMTEXT NOT NULL ,
+        `testcol6` LONGTEXT NOT NULL , `testcol7` BINARY(20) NOT NULL , `testcol8` VARBINARY(20) NOT NULL ,
+        `testcol9` TINYBLOB NOT NULL , `testcol10` MEDIUMBLOB NOT NULL , `testcol11` BLOB NOT NULL ,
+        `testcol12` LONGBLOB NOT NULL , `testcol13` ENUM('hey','hello') NOT NULL ,
+        `testcol14` SET('world','internet') NOT NULL , `testcol15` GEOMETRY(20) NOT NULL , 
+        `testcol16` BIT(20) NOT NULL , `testcol17` DECIMAL(5,1) NOT NULL , 
+        `testcol18` NEWDECIMAL(5,2) NOT NULL , `testcol19` JSON(20) NOT NULL
+    ) ENGINE = InnoDB;'
+  - mysql -e 'CREATE TABLE `test_ints` (
+        `testcol1` TINYINT(20) NOT NULL , `testcol2` SHORTINT(20) NOT NULL ,
+        `testcol3` YEAR(4) NOT NULL , `testcol4` INT24(20) NOT NULL ,
+        `testcol5` INT(20) NOT NULL , `testcol6` BIGINT(20) NOT NULL ,
+    ) ENGINE = InnoDB;'
+  - mysql -e 'CREATE TABLE `test_floats` (
+        `testcol1` FLOAT NOT NULL , `testcol2` DOUBLE NOT NULL ,
+    ) ENGINE = InnoDB;'
   - ./vendor/bin/phpunit tests --exclude-group tls
   - mysql -e 'DROP DATABASE IF EXISTS `plasma_tmp`'

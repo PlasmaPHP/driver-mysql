@@ -812,6 +812,697 @@ class DriverTest extends TestCase {
         $this->assertSame('"hello \"world\""', $str);
     }
     
+    function insertIntoTestString(int $colnum, string $value): array {
+        $values = array();
+        
+        for($i = 0; $i < 18; $i++) {
+            if($colnum === $i) {
+                $values[] = $value;
+            } else {
+                $values[] = '';
+            }
+        }
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $client = $this->client->createClientMock();
+        
+        $prep = $driver->execute(
+            $client,
+            'INSERT INTO `test_strings` VALUES ('.\implode(', ', \array_fill(0, 18, '?')).')',
+            $values
+        );
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_strings`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\all($select);
+        return $this->await($dataProm);
+    }
+    
+    function testBinaryTypeChar() {
+        $data = $this->insertIntoTestString(0, 'hell');
+        
+        $this->assertContains(array(
+            'testcol1' => 'hell',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeVarchar() {
+        $data = $this->insertIntoTestString(1, 'hello');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => 'hello',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeTinyText() {
+        $data = $this->insertIntoTestString(2, 'hallo');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => 'hallo',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeText() {
+        $data = $this->insertIntoTestString(3, 'hallo2');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => 'hallo2',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeMediumText() {
+        $data = $this->insertIntoTestString(4, 'hallo3');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => 'hallo3',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeLongText() {
+        $data = $this->insertIntoTestString(5, 'hallo4');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => 'hallo4',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeBinary() {
+        $data = $this->insertIntoTestString(6, 'hallo5');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => 'hallo5',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeVarBinary() {
+        $data = $this->insertIntoTestString(7, 'hallo6');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => 'hallo6',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeTinyBlob() {
+        $data = $this->insertIntoTestString(8, 'hallo7');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => 'hallo7',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeMediumBlob() {
+        $data = $this->insertIntoTestString(9, 'hallo8');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => 'hallo8',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeBlob() {
+        $data = $this->insertIntoTestString(10, 'hallo9');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => 'hallo9',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeLongBlob() {
+        $data = $this->insertIntoTestString(11, 'hello world');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => 'hello world',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeEnum() {
+        $data = $this->insertIntoTestString(12, 'hey');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => 'hey',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeSet() {
+        $data = $this->insertIntoTestString(13, 'world');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => 'world',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeGeometry() {
+        $data = $this->insertIntoTestString(14, '');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeBit() {
+        $data = $this->insertIntoTestString(15, '1');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '1',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeDecimal() {
+        $data = $this->insertIntoTestString(16, '5.2');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '5.2',
+            'testcol18' => '',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeNewDecimal() {
+        $data = $this->insertIntoTestString(17, '5.32');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '5.2',
+            'testcol18' => '5.32',
+            'testcol19' => ''
+        ), $data);
+    }
+    
+    function testBinaryTypeNewJSON() {
+        $data = $this->insertIntoTestString(18, '{"hello":true}');
+        
+        $this->assertContains(array(
+            'testcol1' => '',
+            'testcol2' => '',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => '',
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => '',
+            'testcol17' => '',
+            'testcol18' => '',
+            'testcol19' => '{"hello":true}'
+        ), $data);
+    }
+    
+    function insertIntoTestInt(int $colnum, int $value): array {
+        $values = array();
+        
+        for($i = 0; $i < 6; $i++) {
+            if($colnum === $i) {
+                $values[] = $value;
+            } else {
+                $values[] = 0;
+            }
+        }
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $client = $this->client->createClientMock();
+        
+        $prep = $driver->execute(
+            $client,
+            'INSERT INTO `test_ints` VALUES ('.\implode(', ', \array_fill(0, 5, '?')).')',
+            $values
+        );
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\all($select);
+        return $this->await($dataProm);
+    }
+    
+    function testBinaryTypeTiny() {
+        $data = $this->insertIntoTestInt(0, 5);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 0,
+            'testcol3' => 0,
+            'testcol4' => 0,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testBinaryTypeShort() {
+        $data = $this->insertIntoTestInt(1, 62870);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 62870,
+            'testcol3' => 0,
+            'testcol4' => 0,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testBinaryTypeYear() {
+        $data = $this->insertIntoTestInt(2, 2014);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 0,
+            'testcol3' => 2014,
+            'testcol4' => 0,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testBinaryTypeInt24() {
+        $data = $this->insertIntoTestInt(3, 1677416);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 0,
+            'testcol3' => 0,
+            'testcol4' => 1677416,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testBinaryTypeLong() {
+        $data = $this->insertIntoTestInt(4, 2147483648);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 0,
+            'testcol3' => 0,
+            'testcol4' => 0,
+            'testcol5' => 2147483648,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testBinaryTypeLongLong() {
+        $data = $this->insertIntoTestInt(6, 4611686018427388000);
+        
+        $this->assertContains(array(
+            'testcol1' => 0,
+            'testcol2' => 0,
+            'testcol3' => 0,
+            'testcol4' => 0,
+            'testcol5' => 0,
+            'testcol6' => 4611686018427388000
+        ), $data);
+    }
+    
+    function insertIntoTestFloat(int $colnum, float $value): array {
+        $values = array();
+        
+        for($i = 0; $i < 2; $i++) {
+            if($colnum === $i) {
+                $values[] = $value;
+            } else {
+                $values[] = 0.0;
+            }
+        }
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $client = $this->client->createClientMock();
+        
+        $prep = $driver->execute(
+            $client,
+            'INSERT INTO `test_floats` VALUES (?, ?)',
+            $values
+        );
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_floats`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\all($select);
+        return $this->await($dataProm);
+    }
+    
+    function testBinaryTypeFloat() {
+        $data = $this->insertIntoTestFloat(0, 5.2);
+        
+    }
+    
+    function testBinaryTypeDouble() {
+        $data = $this->insertIntoTestInt(6, 4611686018427388000);
+        
+    }
+    
+    function testBinaryTypeString() {
+        
+    }
+    
     function createClientMock(): \Plasma\ClientInterface {
         return $this->getMockBuilder(\Plasma\ClientInterface::class)
             ->setMethods(array(
