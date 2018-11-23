@@ -115,6 +115,11 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     protected $handshakeMessage;
     
     /**
+     * @var \Plasma\Drivers\MySQL\Messages\OkResponseMessage|null
+     */
+    protected $lastOkMessage;
+    
+    /**
      * @var \Plasma\CommandInterface|null
      */
     protected $currentCommand;
@@ -190,6 +195,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      */
     function getHandshakeMessage(): ?\Plasma\Drivers\MySQL\Messages\HandshakeMessage {
         return $this->handshakeMessage;
+    }
+    
+    /**
+     * Get the last ok response message, or null.
+     * @return \Plasma\Drivers\MySQL\Messages\OkResponseMessage|null
+     */
+    function getLastOkMessage(): ?\Plasma\Drivers\MySQL\Messages\OkResponseMessage {
+        return $this->lastOkMessage;
     }
     
     /**
@@ -338,6 +351,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 break;
                 case $isOkMessage:
                     $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
+                    $this->lastOkMessage = $message;
                 break;
                 case ($firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() && $length < 6):
                     $message = new \Plasma\Drivers\MySQL\Messages\EOFMessage($this);

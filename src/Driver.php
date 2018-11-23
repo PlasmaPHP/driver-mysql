@@ -25,6 +25,8 @@ class Driver implements \Plasma\DriverInterface {
      * @var array
      */
     protected $options = array(
+        'characters.set' => 'utf8mb4',
+        'characters.collate' => null,
         'tls.context' => array(),
         'tls.force' => true,
         'tls.forceLocal' => false
@@ -81,6 +83,11 @@ class Driver implements \Plasma\DriverInterface {
      * @var \React\Promise\Deferred
      */
     protected $goingAway;
+    
+    /**
+     * @var string|null
+     */
+    protected $charset;
     
     /**
      * Constructor.
@@ -155,17 +162,6 @@ class Driver implements \Plasma\DriverInterface {
         $this->connectionState = static::CONNECTION_STARTED;
         $resolved = false;
         
-        if(!empty($parts['query'])) {
-            \parse_str($parts['query'], $query);
-            $charset = $query['charset'] ?? null;
-            $collate = $query['collate'] ?? null;
-            
-            unset($query);
-        } else {
-            $charset = null;
-            $collate = null;
-        }
-        
         $this->connectPromise =  $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
             // See description of property encryption
             if(!($connection instanceof \React\Socket\Connection)) {
@@ -215,9 +211,11 @@ class Driver implements \Plasma\DriverInterface {
             });
         });
         
-        if($charset) {
-            $this->connectPromise = $this->connectPromise->then(function () use ($charset, $collate) {
-                $query = 'SET NAMES "'.$charset.'"'.($collate ? ' COLLATE "'.$collate.'"' : '');
+        if($this->options['characters.set']) {
+            $this->charset = $this->options['characters.set'];
+            $this->connectPromise = $this->connectPromise->then(function () {
+                $query = 'SET NAMES "'.$this->options['characters.set'].'"'
+                    .($this->options['characters.collate'] ? ' COLLATE "'.$this->options['characters.collate'].'"' : '');
                 
                 $cmd = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
                 $this->executeCommand($cmd);
@@ -351,7 +349,7 @@ class Driver implements \Plasma\DriverInterface {
                 });
             }
             
-            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
+            throw new \Plasma\Exception('Unable to continue without connection');
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
@@ -385,7 +383,7 @@ class Driver implements \Plasma\DriverInterface {
                 });
             }
             
-            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
+            throw new \Plasma\Exception('Unable to continue without connection');
         }
         
         $command = new \Plasma\Drivers\MySQL\Commands\StatementPrepareCommand($client, $this, $query);
@@ -415,7 +413,7 @@ class Driver implements \Plasma\DriverInterface {
                 });
             }
             
-            throw new \Plasma\Exception('You forgot to call Driver::connect()!');
+            throw new \Plasma\Exception('Unable to continue without connection');
         }
         
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
@@ -447,7 +445,68 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \Plasma\Exception
      */
     function quote(string $str): string {
-        throw new \LogicException('Not implemented yet'); // TODO
+        if($this->parser === null) {
+            throw new \Plasma\Exception('Unable to continue without connection');
+        }
+        
+        $message = $this->parser->getLastOkMessage();
+        if($message === null) {
+            $message = $this->parser->getHandshakeMessage();
+            
+            if($message === null) {
+                throw new \Plasma\Exception('Unable to quote without a previous handshake');
+            }
+        }
+        
+        $pos = \strpos($this->charset, '_');
+        $dbCharset = \substr($this->charset, 0, ($pos !== false ? $pos : \strlen($this->charset)));
+        $realCharset = $this->getRealCharset($dbCharset);
+        
+        if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_NO_BACKSLASH_ESCAPES) !== 0) {
+            return $this->escapeUsingQuotes($realCharset, $str);
+        }
+        
+        return $this->escapeUsingBackslashes($realCharset, $str);
+    }
+    
+    /**
+     * Escapes using quotes.
+     * @param string  $realCharset
+     * @param string  $str
+     * @return string
+     */
+    function escapeUsingQuotes(string $realCharset, string $str): string {
+        $escapeChars = array(
+            '"',
+            '\\',
+        );
+        
+        $escapeReplace = array(
+            '""',
+            '\\\\',
+        );
+        
+        return '"'.\str_replace($escapeChars, $escapeReplace, $str).'"';
+    }
+    
+    /**
+     * Escapes using backslashes.
+     * @param string  $realCharset
+     * @param string  $str
+     * @return string
+     */
+    function escapeUsingBackslashes(string $realCharset, string $str): string {
+        $escapeChars = array(
+            '\\',
+            '"',
+        );
+        
+        $escapeReplace = array(
+            '\\\\',
+            '\"',
+        );
+        
+        return '"'.\str_replace($escapeChars, $escapeReplace, $str).'"';
     }
     
     /**
@@ -654,6 +713,10 @@ class Driver implements \Plasma\DriverInterface {
                     $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_CONNECT_WITH_DB;
                 }
                 
+                if($this->charset === null) {
+                    $this->charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$message->characterSet] ?? 'latin1';
+                }
+                
                 // Check if we support auth plugins
                 $plugins = \Plasma\Drivers\MySQL\DriverFactory::getAuthPlugins();
                 $plugin = null;
@@ -800,6 +863,27 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Get the real charset from the DB charset.
+     * @param string  $charset
+     * @return string
+     */
+    protected function getRealCharset(string $charset): string {
+        if(\substr($charset, 0, 4) === 'utf8') {
+            return 'UTF-8';
+        }
+        
+        $charsets = \mb_list_encodings();
+        
+        foreach($charsets as $set) {
+            if(\stripos($set, $charset) === 0) {
+                return $set;
+            }
+        }
+        
+        return 'UTF-8';
+    }
+    
+    /**
      * Validates the given options.
      * @param array  $options
      * @return void
@@ -807,6 +891,8 @@ class Driver implements \Plasma\DriverInterface {
      */
     protected function validateOptions(array $options) {
         $validator = \CharlotteDunois\Validation\Validator::make($options, array(
+            'characters.set' => 'string',
+            'characters.collate' => 'string',
             'connector' => 'class:\React\Socket\ConnectorInterface=object',
             'tls.context' => 'array',
             'tls.force' => 'boolean',

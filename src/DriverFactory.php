@@ -43,6 +43,8 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
      * ```
      * array(
      *     'connector' => ConnectorInstance, (a custom connector instance, which MUST return a `Connection` instance from the `react/socket` package)
+     *     'characters.set' => string, (the character set, defaults to utf8mb4)
+     *     'characters.collate' => string, (the collate to use, defaults to the charset default)
      *     'tls.context' => array, (socket TLS context options)
      *     'tls.force' => bool, (whether non-localhost connections are forced to use TLS, defaults to true)
      *     'tls.forceLocal' => bool, (whether localhost connections are forced to use TLS, defaults to false)

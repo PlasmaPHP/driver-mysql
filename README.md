@@ -4,7 +4,7 @@ Plasma aims to be an asynchronous, non-blocking (data access) Database Abstracti
 
 The driver uses ReactPHP to asychronously interface with the database server.
 
-The driver supports setting a connection charset through the query string `charset=MY_CHARSET`. It's recommended to add `?charset=utf8mb4` to the connect uri. A connection collate can also be set through the same way as charset.
+The driver supports setting a connection charset through the driver options, it should be noted that the default is `utf8mb4` (UTF-8), which is a character set you should use all the way through.
 
 # Getting Started
 You can install this component by using `composer`. The command is
@@ -25,7 +25,7 @@ Additionally you can create your own auth plugins, if your database server uses 
 $loop = \React\EventLoop\Factory::create();
 
 $factory = \Plasma\Drivers\MySQL\DriverFactory::create($loop, array());
-$client = \Plasma\Client::create($factory, 'user:password@localhost:3306/database?charset=utf8mb4', array());
+$client = \Plasma\Client::create($factory, 'user:password@localhost:3306/database', array());
 
 // Code which uses the client to run queries against the database
 

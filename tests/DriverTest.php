@@ -26,7 +26,7 @@ class DriverTest extends TestCase {
     }
     
     function connect(\Plasma\DriverInterface $driver, string $uri): \React\Promise\PromiseInterface {
-        $creds = (getenv('MDB_USER') ? getenv('MDB_USER').':'.getenv('MDB_PASSWORD').'@' : 'root:@');
+        $creds = (\getenv('MDB_USER') ? \getenv('MDB_USER').':'.\getenv('MDB_PASSWORD').'@' : 'root:@');
         
         return $driver->connect($creds.$uri);
     }
@@ -730,7 +730,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $this->expectException(\Plasma\Exception::class);
-        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
         $query = $driver->query($client, 'whatever');
@@ -741,7 +741,7 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $this->expectException(\Plasma\Exception::class);
-        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
         $query = $driver->prepare($client, 'whatever');
@@ -752,10 +752,67 @@ class DriverTest extends TestCase {
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
         $this->expectException(\Plasma\Exception::class);
-        $this->expectExceptionMessage('You forgot to call Driver::connect()!');
+        $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
         $query = $driver->execute($client, 'whatever');
+    }
+    
+    function testQuote() {
+        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $str = $driver->quote('hello "world"');
+        $this->assertContains($str, array(
+            '"hello \"world\""',
+            '"hello ""world"""'
+        ));
+    }
+    
+    function testQuoteWithOkResponse() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $str = $driver->quote('hello "world"');
+        $this->assertContains($str, array(
+            '"hello \"world\""',
+            '"hello ""world"""'
+        ));
+    }
+    
+    function testQuoteWithoutConnection() {
+        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Unable to continue without connection');
+        
+        $str = $driver->quote('hello "world"');
+    }
+    
+    function testQuoteQuotes() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $str = $driver->escapeUsingQuotes('UTF-8', 'hello "world"');
+        $this->assertSame('"hello ""world"""', $str);
+    }
+    
+    function testQuoteBackslashes() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello "world"');
+        $this->assertSame('"hello \"world\""', $str);
     }
     
     function createClientMock(): \Plasma\ClientInterface {
