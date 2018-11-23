@@ -1609,8 +1609,9 @@ class DriverTest extends TestCase {
             'testcol3' => '0d 00:00:00'
         ), $data);
         
-        $this->assertLessThanOrEqual($timestamp, $ts);
-        $this->assertGreaterThan(0, $ts);
+        // We're happy if we're +/- 1 minute correct
+        $this->assertLessThanOrEqual(($timestamp + 60), $ts);
+        $this->assertGreaterThanOrEqual(($timestamp - 60), $ts);
     }
     
     function testBinaryTypeTimestampZeroed() {
