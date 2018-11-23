@@ -56,6 +56,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @var int
      */
     const CLIENT_CAPABILITIES = (
+        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_FOUND_ROWS |
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LONG_PASSWORD |
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LONG_FLAG |
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LOCAL_FILES |
@@ -334,7 +335,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $isOkMessage = (
                 (
                     $firstChar === $okRespID &&
-                    !($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand)
+                    (!($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand)
+                        || \strtoupper(\substr($this->currentCommand->getQuery(), 0, 6)) !== 'SELECT') // Fix for MySQL 5.7
                 ) ||
                 (
                     $firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() &&

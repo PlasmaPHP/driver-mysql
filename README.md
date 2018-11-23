@@ -6,6 +6,8 @@ The driver uses ReactPHP to asychronously interface with the database server.
 
 The driver supports setting a connection charset through the driver options, it should be noted that the default is `utf8mb4` (UTF-8), which is a character set you should use all the way through.
 
+It should also be noted, that MySQL versions, which support the `FOUND_ROWS` flag, can return a non-zero value when using `StreamQueryResultInterface::getAffectedRows()` for `SELECT` queries.
+
 # Getting Started
 You can install this component by using `composer`. The command is
 

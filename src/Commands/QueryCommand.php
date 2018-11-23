@@ -55,6 +55,14 @@ class QueryCommand extends PromiseCommand {
     }
     
     /**
+     * Get the query.
+     * @return string
+     */
+    function getQuery(): string {
+        return $this->query;
+    }
+    
+    /**
      * Get the encoded message for writing to the database connection.
      * @return string
      */
