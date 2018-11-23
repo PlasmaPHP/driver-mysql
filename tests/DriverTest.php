@@ -1600,12 +1600,17 @@ class DriverTest extends TestCase {
         $data = $this->insertIntoTestDate(3, '0');
         $timestamp = \time();
         
+        $ts = $data['testcol4'];
+        unset($data['testcol4']);
+        
         $this->assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
-            'testcol3' => '0d 00:00:00',
-            'testcol4' => $timestamp
+            'testcol3' => '0d 00:00:00'
         ), $data);
+        
+        $this->assertLessThanOrEqual($timestamp, $ts);
+        $this->assertGreaterThan(0, $ts);
     }
     
     function testBinaryTypeTimestampZeroed() {
