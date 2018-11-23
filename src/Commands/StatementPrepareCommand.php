@@ -106,6 +106,7 @@ class StatementPrepareCommand extends PromiseCommand {
         if($value instanceof \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage) {
             $this->okResponse = $value;
             $this->fieldsCount = $this->okResponse->numColumns;
+            $this->paramsDone = ($this->okResponse->numParams === 0);
         } elseif($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
             $buffer = $value->getBuffer();
             $parser = $value->getParser();
@@ -130,6 +131,11 @@ class StatementPrepareCommand extends PromiseCommand {
         ) {
             if(!$this->paramsDone) {
                 $this->paramsDone = true;
+                
+                if($this->okResponse->numColumns === 0) {
+                    $this->createResolve();
+                }
+                
                 return;
             }
             

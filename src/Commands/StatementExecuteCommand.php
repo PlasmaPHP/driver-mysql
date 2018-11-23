@@ -150,7 +150,7 @@ class StatementExecuteCommand extends QueryCommand {
     
     /**
      * Standard encode value, if type extensions failed.
-     * @param mixed  $param
+     * @param mixed                              $param
      * @return array
      * @throws \Plasma\Exception
      */
@@ -207,45 +207,45 @@ class StatementExecuteCommand extends QueryCommand {
      */
     protected function stdDecodeBinaryValue(\Plasma\ColumnDefinitionInterface $column, \Plasma\BinaryBuffer $buffer) {
         $flags = $column->getFlags();
+        $type = $column->getType();
         
         switch(true) {
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_STRING) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VARCHAR) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_VAR_STRING) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_ENUM) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SET) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_MEDIUM_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY_BLOB) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_GEOMETRY) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_BIT) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DECIMAL) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NEWDECIMAL) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_JSON) !== 0):
-            case ($column->getType() === 'VARSTRING'): // WTF is going on ?! flags = 0, type = VARSTRING
+            case ($type === 'STRING'):
+            case ($type === 'VARCHAR'):
+            case ($type === 'VARSTRING'):
+            case ($type === 'ENUM'):
+            case ($type === 'SET'):
+            case ($type === 'LONGBLOB'):
+            case ($type === 'MEDIUMBLOB'):
+            case ($type === 'BLOB'):
+            case ($type === 'TINY_BLOB'):
+            case ($type === 'GEOMETRY'):
+            case ($type === 'BIT'):
+            case ($type === 'DECIMAL'):
+            case ($type === 'NEWDECIMAL'):
+            case ($type === 'JSON'):
                 $value = $buffer->readStringLength();
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY) !== 0):
+            case ($type === 'TINY'):
                 $value = $buffer->readInt1();
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_YEAR) !== 0):
+            case ($type === 'SHORT'):
+            case ($type === 'YEAR'):
                 $value = $buffer->readInt2();
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_INT24) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG) !== 0):
+            case ($type === 'INT24'):
+            case ($type === 'LONG'):
                 $value = $buffer->readInt4();
-            
+                
                 if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) !== 0 && \PHP_INT_SIZE <= 4) {
                     $value = \bcadd($value, '18446744073709551616');
                 }
                 
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG) !== 0):
+            case ($type === 'LONGLONG'):
                 $value = $buffer->readInt8();
                 
                 if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) !== 0) {
@@ -256,27 +256,27 @@ class StatementExecuteCommand extends QueryCommand {
                 
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_FLOAT) !== 0):
+            case ($type === 'FLOAT'):
                 $value = $buffer->readFloat();
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE) !== 0):
+            case ($type === 'DOUBLE'):
                 $value = $buffer->readDouble();
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DATE) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NEWDATE) !== 0):
+            case ($type === 'DATE'):
+            case ($type === 'NEWDATE'):
                 $length = $buffer->readIntLength();
                 if($length > 0) {
                     $year = $buffer->readInt2();
                     $month = $buffer->readInt1();
                     $day = $buffer->readInt1();
                     
-                    $value = \sprintf('%d-%d-%d', $year, $month, $day);
+                    $value = \sprintf('%04d-%02d-%02d', $year, $month, $day);
                 } else {
                     $value = '0000-00-00';
                 }
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DATETIME) !== 0):
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP) !== 0):
+            case ($type === 'DATETIME'):
+            case ($type === 'TIMESTAMP'):
                 $length = $buffer->readIntLength();
                 if($length > 0) {
                     $year = $buffer->readInt2();
@@ -294,28 +294,26 @@ class StatementExecuteCommand extends QueryCommand {
                     }
                     
                     if($length > 7) {
-                        $micro = $buffer->readInt4();
+                        $microI = $buffer->readInt4();
                     } else {
-                        $micro = 0;
+                        $microI = 0;
                     }
                     
-                    $timestamp = (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP) !== 0);
+                    $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
+                    $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
                     
-                    $micro = \str_pad($micro, 6, '0', \STR_PAD_LEFT);
-                    $micro = ($timestamp ? $micro : \substr($micro, 0, 3).' '.\substr($micro, 3));
+                    $value = \sprintf('%04d-%02d-%02d %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $year, $month, $day, $hour, $min, $sec, $micro);
                     
-                    $value = \sprintf('%d-%d-%d %d:%d:%d'.($micro > 0 ? '.%s' : ''), $year, $month, $day, $hour, $min, $sec, $micro);
-                    
-                    if($timestamp) {
-                        $value = \DateTime::createFromFormat('Y-m-d H:i:s'.($micro > 0 ? '.u' : ''), $value)->getTimestamp();
+                    if($type === 'TIMESTAMP') {
+                        $value = \DateTime::createFromFormat('Y-m-d H:i:s'.($microI > 0 ? '.u' : ''), $value)->getTimestamp();
                     }
                 } else {
                     $value = '0000-00-00 00:00:00.000 000';
                 }
             break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIME) !== 0):
+            case ($type === 'TIME'):
                 $length = $buffer->readIntLength();
-                if($length > 0) {
+                if($length > 1) {
                     $sign = $buffer->readInt1();
                     $days = $buffer->readInt4();
                     
@@ -328,21 +326,18 @@ class StatementExecuteCommand extends QueryCommand {
                     $sec = $buffer->readInt1();
                     
                     if($length > 8) {
-                        $micro = $buffer->readInt4();
+                        $microI = $buffer->readInt4();
                     } else {
-                        $micro = 0;
+                        $microI = 0;
                     }
                     
-                    $micro = \str_pad($micro, 6, '0', \STR_PAD_LEFT);
+                    $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
                     $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
                     
-                    $value = \sprintf('%dd %d:%d:%d'.($micro > 0 ? '.%s' : ''), $days, $hour, $min, $sec, $micro);
+                    $value = \sprintf('%dd %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $days, $hour, $min, $sec, $micro);
                 } else {
                     $value = '0d 00:00:00';
                 }
-            break;
-            case (($flags & \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL) !== 0):
-                $value = null;
             break;
             default:
                 throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$column->getType().')');
