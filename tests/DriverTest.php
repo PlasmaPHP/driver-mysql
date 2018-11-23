@@ -790,9 +790,6 @@ class DriverTest extends TestCase {
         $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
-        $this->await($prom);
-        
         $this->expectException(\Plasma\Exception::class);
         $this->expectExceptionMessage('Unable to continue without connection');
         
