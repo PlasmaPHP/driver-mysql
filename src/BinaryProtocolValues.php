@@ -12,6 +12,7 @@ namespace Plasma\Drivers\MySQL;
 /**
  * Binary protocol rowset values decoder and encoder.
  * @internal
+ * @codeCoverageIgnore
  */
 class BinaryProtocolValues {
     /**
