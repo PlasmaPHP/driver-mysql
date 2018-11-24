@@ -150,7 +150,7 @@ class StatementExecuteCommand extends QueryCommand {
     
     /**
      * Standard encode value, if type extensions failed.
-     * @param mixed                              $param
+     * @param mixed  $param
      * @return array
      * @throws \Plasma\Exception
      */

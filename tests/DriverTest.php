@@ -772,6 +772,20 @@ class DriverTest extends TestCase {
         ));
     }
     
+    function testQuoteIdentifier() {
+        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $str = $driver->quote('hello `world`', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        $this->assertContains($str, array(
+            '`hello \`world\``',
+            '`hello ``world```'
+        ));
+    }
+    
     function testQuoteWithOkResponse() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -783,6 +797,20 @@ class DriverTest extends TestCase {
         $this->assertContains($str, array(
             '"hello \"world\""',
             '"hello ""world"""'
+        ));
+    }
+    
+    function testQuoteWithOkResponseIdentifier() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost');
+        $this->await($prom);
+        
+        $str = $driver->quote('hello `world`', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        $this->assertContains($str, array(
+            '`hello \`world\``',
+            '`hello ``world```'
         ));
     }
     
@@ -800,7 +828,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingQuotes('UTF-8', 'hello "world"');
+        $str = $driver->escapeUsingQuotes('UTF-8', 'hello "world"', \Plasma\DriverInterface::QUOTE_TYPE_VALUE);
         $this->assertSame('"hello ""world"""', $str);
     }
     
@@ -808,7 +836,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello "world"');
+        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello "world"', \Plasma\DriverInterface::QUOTE_TYPE_VALUE);
         $this->assertSame('"hello \"world\""', $str);
     }
     
@@ -826,6 +854,37 @@ class DriverTest extends TestCase {
         
         $str = $driver->escapeUsingBackslashes('UTF-8', 'hello`_world', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
         $this->assertSame('`hello\`_world`', $str);
+    }
+    
+    function testUnsupportedTypeForBindingParameters() {
+        $values = array();
+        
+        for($i = 0; $i < 19; $i++) {
+            $values[] = '';
+        }
+        
+        $values[0] = array('hello', 'world');
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->execute(
+            $client,
+            'INSERT INTO `test_strings` VALUES ('.\implode(', ', \array_fill(0, 18, '?')).')',
+            $values
+        );
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Unexpected type for binding parameter: array');
+        
+        $result = $this->await($prep);
     }
     
     function insertIntoTestString(int $colnum, string $value): array {
@@ -1358,6 +1417,46 @@ class DriverTest extends TestCase {
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
         return $data;
+    }
+    
+    function testBinaryTypeTinyBoolean() {
+        $values = array(true, 0, 0, 0, 0, 0, 0);
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->execute(
+            $client,
+            'INSERT INTO `test_ints` VALUES ('.\implode(', ', \array_fill(0, 6, '?')).')',
+            $values
+        );
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\first($select);
+        $data = $this->await($dataProm);
+        
+        $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
+        
+        $this->assertSame(array(
+            'testcol1' => '00001',
+            'testcol2' => 0,
+            'testcol3' => '0000',
+            'testcol4' => 0,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
     }
     
     function testBinaryTypeTiny() {
