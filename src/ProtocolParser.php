@@ -335,7 +335,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $isOkMessage = (
                 (
                     $firstChar === $okRespID &&
-                    (!($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand)
+                    (!($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\QueryCommand)
                         || \strtoupper(\substr($this->currentCommand->getQuery(), 0, 6)) !== 'SELECT') // Fix for MySQL 5.7
                 ) ||
                 (

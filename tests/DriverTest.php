@@ -880,7 +880,7 @@ class DriverTest extends TestCase {
         
         $this->assertSame(1, $result->getAffectedRows());
         
-        $selprep = $driver->execute($client, 'SELECT * FROM `test_strings`');
+        $selprep = $driver->query($client, 'SELECT * FROM `test_strings`');
         $select = $this->await($selprep);
         
         $dataProm = \React\Promise\Stream\first($select);
@@ -928,7 +928,7 @@ class DriverTest extends TestCase {
         
         $this->assertSame(1, $result->getAffectedRows());
         
-        $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
+        $selprep = $driver->query($client, 'SELECT * FROM `test_ints`');
         $select = $this->await($selprep);
         
         $dataProm = \React\Promise\Stream\first($select);
@@ -964,7 +964,7 @@ class DriverTest extends TestCase {
         
         $this->assertSame(1, $result->getAffectedRows());
         
-        $selprep = $driver->execute($client, 'SELECT * FROM `test_floats`');
+        $selprep = $driver->query($client, 'SELECT * FROM `test_floats`');
         $select = $this->await($selprep);
         
         $dataProm = \React\Promise\Stream\first($select);
@@ -999,7 +999,7 @@ class DriverTest extends TestCase {
         
         $this->assertSame(1, $result->getAffectedRows());
         
-        $selprep = $driver->execute($client, 'SELECT * FROM `test_dates`');
+        $selprep = $driver->query($client, 'SELECT * FROM `test_dates`');
         $select = $this->await($selprep);
         
         $dataProm = \React\Promise\Stream\first($select);
@@ -1008,13 +1008,13 @@ class DriverTest extends TestCase {
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_dates`'));
         
         $timestamp = \time();
-        $ts = $data['testcol4'];
+        $ts = \DateTime::createFromFormat('Y-m-d H:i:s', $data['testcol4'])->getTimestamp();
         unset($data['testcol4']);
         
         $this->assertSame(array(
             'testcol1' => '2011-03-05',
             'testcol2' => '2011-03-05 00:00:00',
-            'testcol3' => '0d 23:41:03'
+            'testcol3' => '23:41:03'
         ), $data);
         
         // We're happy if we're +/- 1 minute correct

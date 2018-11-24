@@ -22,28 +22,25 @@ class TextProtocolValues {
      * @throws \Plasma\Exception
      */
     static function decode(\Plasma\ColumnDefinitionInterface $column, $param) {
+        $type = $column->getType();
         $flags = $column->getFlags();
         
         if($param !== null && ($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) === 0) {
-            switch($column->getType()) {
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG:
+            switch(true) {
+                case ($type === 'LONG'):
                     if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 || \PHP_INT_SIZE > 4) {
                         $param = (int) $param;
                     }
                 break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG:
+                case ($type === 'LONGLONG'):
                     if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 && \PHP_INT_SIZE > 4) {
                         $param = (int) $param;
                     }
                 break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_INT24:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP:
+                case static::isTypeTinyShortInt($type):
                     $param = (int) $param;
                 break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_FLOAT:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE:
+                case static::isTypeFloat($type):
                     $param = (float) $param;
                 break;
                 // Other types are taken as string
@@ -51,5 +48,23 @@ class TextProtocolValues {
         }
         
         return $param;
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    static function isTypeTinyShortInt(string $type): bool {
+        $types = array('TINY', 'SHORT', 'INT24');
+        return \in_array($type, $types, true);
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    static function isTypeFloat(string $type): bool {
+        $types = array('FLOAT', 'DOUBLE');
+        return \in_array($type, $types, true);
     }
 }
