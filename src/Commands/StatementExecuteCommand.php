@@ -260,70 +260,13 @@ class StatementExecuteCommand extends QueryCommand {
                 }
             break;
             case $this->isTypeDateTime($type):
-                $length = $buffer->readIntLength();
-                if($length > 0) {
-                    $year = $buffer->readInt2();
-                    $month = $buffer->readInt1();
-                    $day = $buffer->readInt1();
-                    
-                    if($length > 4) {
-                        $hour = $buffer->readInt1();
-                        $min = $buffer->readInt1();
-                        $sec = $buffer->readInt1();
-                    } else {
-                        $hour = 0;
-                        $min = 0;
-                        $sec = 0;
-                    }
-                    
-                    if($length > 7) {
-                        $microI = $buffer->readInt4();
-                    } else {
-                        $microI = 0;
-                    }
-                    
-                    $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
-                    $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
-                    
-                    $value = \sprintf('%04d-%02d-%02d %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $year, $month, $day, $hour, $min, $sec, $micro);
-                    
-                    if($type === 'TIMESTAMP') {
-                        $value = \DateTime::createFromFormat('Y-m-d H:i:s'.($microI > 0 ? '.u' : ''), $value)->getTimestamp();
-                    }
-                } else {
-                    $value = '0000-00-00 00:00:00.000 000';
-                }
+                $value = $this->parseDateTime($type, $buffer);
             break;
             case ($type === 'TIME'):
-                $length = $buffer->readIntLength();
-                if($length > 1) {
-                    $sign = $buffer->readInt1();
-                    $days = $buffer->readInt4();
-                    
-                    if($sign === 1) {
-                        $days *= -1;
-                    }
-                    
-                    $hour = $buffer->readInt1();
-                    $min = $buffer->readInt1();
-                    $sec = $buffer->readInt1();
-                    
-                    if($length > 8) {
-                        $microI = $buffer->readInt4();
-                    } else {
-                        $microI = 0;
-                    }
-                    
-                    $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
-                    $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
-                    
-                    $value = \sprintf('%dd %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $days, $hour, $min, $sec, $micro);
-                } else {
-                    $value = '0d 00:00:00';
-                }
+                $value = $this->parseTime($buffer);
             break;
             default:
-                throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$column->getType().')');
+                throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$type.')');
             break;
         }
         
@@ -378,6 +321,86 @@ class StatementExecuteCommand extends QueryCommand {
     protected function isTypeDateTime(string $type): bool {
         $types = array('DATETIME', 'TIMESTAMP');
         return \in_array($type, $types, true);
+    }
+    
+    /**
+     * Parses a DATETIME or TIMESTAMP value.
+     * @param string                $type
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return mixed
+     */
+    function parseDateTime(string $type, \Plasma\BinaryBuffer $buffer) {
+        $length = $buffer->readIntLength();
+        if($length > 0) {
+            $year = $buffer->readInt2();
+            $month = $buffer->readInt1();
+            $day = $buffer->readInt1();
+            
+            if($length > 4) {
+                $hour = $buffer->readInt1();
+                $min = $buffer->readInt1();
+                $sec = $buffer->readInt1();
+            } else {
+                $hour = 0;
+                $min = 0;
+                $sec = 0;
+            }
+            
+            if($length > 7) {
+                $microI = $buffer->readInt4();
+            } else {
+                $microI = 0;
+            }
+            
+            $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
+            $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
+            
+            $value = \sprintf('%04d-%02d-%02d %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $year, $month, $day, $hour, $min, $sec, $micro);
+            
+            if($type === 'TIMESTAMP') {
+                $value = \DateTime::createFromFormat('Y-m-d H:i:s'.($microI > 0 ? '.u' : ''), $value)->getTimestamp();
+            }
+        } else {
+            $value = '0000-00-00 00:00:00.000 000';
+        }
+        
+        return $value;
+    }
+    
+    /**
+     * Parses a TIME value.
+     * @param \Plasma\BinaryBuffer  $buffer
+     * @return mixed
+     */
+    function parseTime(\Plasma\BinaryBuffer $buffer) {
+        $length = $buffer->readIntLength();
+        if($length > 1) {
+            $sign = $buffer->readInt1();
+            $days = $buffer->readInt4();
+            
+            if($sign === 1) {
+                $days *= -1;
+            }
+            
+            $hour = $buffer->readInt1();
+            $min = $buffer->readInt1();
+            $sec = $buffer->readInt1();
+            
+            if($length > 8) {
+                $microI = $buffer->readInt4();
+            } else {
+                $microI = 0;
+            }
+            
+            $micro = \str_pad($microI, 6, '0', \STR_PAD_LEFT);
+            $micro = \substr($micro, 0, 3).' '.\substr($micro, 3);
+            
+            $value = \sprintf('%dd %02d:%02d:%02d'.($microI > 0 ? '.%s' : ''), $days, $hour, $min, $sec, $micro);
+        } else {
+            $value = '0d 00:00:00';
+        }
+        
+        return $value;
     }
     
     /**
