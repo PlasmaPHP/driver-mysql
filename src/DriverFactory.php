@@ -59,6 +59,12 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
             throw new \LogicException('Encryption is not supported on your platform');
         }
         
+        try {
+            \Plasma\Types\TypeExtensionsManager::registerManager('driver-mysql', null);
+        } catch (\Plasma\Exception $e) {
+            /* One already exists, continue regardless */
+        }
+        
         $this->loop = $loop;
         $this->options = $options;
     }

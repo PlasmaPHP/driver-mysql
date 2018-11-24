@@ -35,7 +35,9 @@ $loop->run();
 ```
 
 # Type Extensions
+This driver uses a type extensions manager registered under the name `driver-mysql`.
 When decoding rows received from the database, the type extensions can get two different type of values to decode, depending on the used protocol.
+
 When using the text protocol (regular queries), then the type extensions get the raw value as string.
 
 However when using the binary protocol (prepared statements), then the type extensions get the used `\Plasma\BinaryBuffer` instance.
