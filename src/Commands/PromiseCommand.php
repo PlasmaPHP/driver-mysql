@@ -239,51 +239,12 @@ abstract class PromiseCommand implements CommandInterface {
                     ->decodeType($column->getType(), $rawValue)
                     ->getValue();
             } catch (\Plasma\Exception $e) {
-                $value = $this->stdDecodeValue($column, $rawValue);
+                $value = \Plasma\Drivers\MySQL\TextProtocolValues::decode($column, $rawValue);
             }
             
             $row[$column->getName()] = $value;
         }
         
         return $row;
-    }
-    
-    /**
-     * Standard decode value, if type extensions failed.
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param string|null                        $param
-     * @return mixed
-     * @throws \Plasma\Exception
-     */
-    protected function stdDecodeValue(\Plasma\ColumnDefinitionInterface $column, $param) {
-        $flags = $column->getFlags();
-        
-        if($param !== null && ($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) === 0) {
-            switch($column->getType()) {
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG:
-                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 || \PHP_INT_SIZE > 4) {
-                        $param = (int) $param;
-                    }
-                break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG:
-                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 && \PHP_INT_SIZE > 4) {
-                        $param = (int) $param;
-                    }
-                break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_INT24:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TIMESTAMP:
-                    $param = (int) $param;
-                break;
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_FLOAT:
-                case \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE:
-                    $param = (float) $param;
-                break;
-                // Other types are taken as string
-            }
-        }
-        
-        return $param;
     }
 }
