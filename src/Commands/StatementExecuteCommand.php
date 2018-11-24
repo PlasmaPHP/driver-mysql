@@ -210,33 +210,18 @@ class StatementExecuteCommand extends QueryCommand {
         $type = $column->getType();
         
         switch(true) {
-            case ($type === 'STRING'):
-            case ($type === 'VARCHAR'):
-            case ($type === 'VARSTRING'):
-            case ($type === 'ENUM'):
-            case ($type === 'SET'):
-            case ($type === 'LONGBLOB'):
-            case ($type === 'MEDIUMBLOB'):
-            case ($type === 'BLOB'):
-            case ($type === 'TINY_BLOB'):
-            case ($type === 'GEOMETRY'):
-            case ($type === 'BIT'):
-            case ($type === 'DECIMAL'):
-            case ($type === 'NEWDECIMAL'):
-            case ($type === 'JSON'):
+            case $this->isTypeString($type):
                 $value = $buffer->readStringLength();
             break;
             case ($type === 'TINY'):
                 $value = $buffer->readInt1();
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case ($type === 'SHORT'):
-            case ($type === 'YEAR'):
+            case $this->isTypeShortOrYear($type):
                 $value = $buffer->readInt2();
                 $value = $this->zeroFillInts($column, $value);
             break;
-            case ($type === 'INT24'):
-            case ($type === 'LONG'):
+            case $this->isTypeInt24orLong($type):
                 $value = $buffer->readInt4();
                 
                 if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) !== 0 && \PHP_INT_SIZE <= 4) {
@@ -262,8 +247,7 @@ class StatementExecuteCommand extends QueryCommand {
             case ($type === 'DOUBLE'):
                 $value = $buffer->readDouble();
             break;
-            case ($type === 'DATE'):
-            case ($type === 'NEWDATE'):
+            case $this->isTypeDate($type):
                 $length = $buffer->readIntLength();
                 if($length > 0) {
                     $year = $buffer->readInt2();
@@ -275,8 +259,7 @@ class StatementExecuteCommand extends QueryCommand {
                     $value = '0000-00-00';
                 }
             break;
-            case ($type === 'DATETIME'):
-            case ($type === 'TIMESTAMP'):
+            case $this->isTypeDateTime($type):
                 $length = $buffer->readIntLength();
                 if($length > 0) {
                     $year = $buffer->readInt2();
@@ -345,6 +328,56 @@ class StatementExecuteCommand extends QueryCommand {
         }
         
         return $value;
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    protected function isTypeString(string $type): bool {
+        $types = array(
+            'STRING', 'VARCHAR', 'VARSTRING', 'ENUM', 'SET', 'LONGBLOB',
+            'MEDIUMBLOB', 'BLOB', 'TINYBLOB', 'GEMOTERY', 'BIT', 'DECIMAL',
+            'NEWDECIMAL', 'JSON'
+        );
+        
+        return \in_array($type, $types, true);
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    protected function isTypeShortOrYear(string $type): bool {
+        $types = array('SHORT', 'YEAR');
+        return \in_array($type, $types, true);
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    protected function isTypeInt24orLong(string $type): bool {
+        $types = array('INT24', 'LONG');
+        return \in_array($type, $types, true);
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    protected function isTypeDate(string $type): bool {
+        $types = array('DATE', 'NEWDATE');
+        return \in_array($type, $types, true);
+    }
+    
+    /**
+     * @param string  $type
+     * @return bool
+     */
+    protected function isTypeDateTime(string $type): bool {
+        $types = array('DATETIME', 'TIMESTAMP');
+        return \in_array($type, $types, true);
     }
     
     /**
