@@ -34,5 +34,12 @@ $client = \Plasma\Client::create($factory, 'user:password@localhost:3306/databas
 $loop->run();
 ```
 
+# Type Extensions
+When decoding rows received from the database, the type extensions can get two different type of values to decode, depending on the used protocol.
+When using the text protocol (regular queries), then the type extensions get the raw value as string.
+
+However when using the binary protocol (prepared statements), then the type extensions get the used `\Plasma\BinaryBuffer` instance.
+It must be used with care. Reading too much from it can lead into dropped row, because the remaining fields can not be properly decoded.
+
 # Documentation
 https://plasmaphp.github.io/driver-mysql/

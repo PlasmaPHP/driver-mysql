@@ -137,11 +137,12 @@ class StatementExecuteCommand extends QueryCommand {
                 continue;
             }
             
-            $value = \Plasma\Drivers\MySQL\BinaryProtocolValues::decode($column, $buffer);
-            $parsedValue = $column->parseValue($value);
-            
-            if($value !== $parsedValue) {
-                $value = $parsedValue;
+            try {
+                $value = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                    ->decodeType($column->getType(), $buffer)
+                    ->getValue();
+            } catch (\Plasma\Exception $e) {
+                $value = \Plasma\Drivers\MySQL\BinaryProtocolValues::decode($column, $buffer);
             }
             
             $row[$column->getName()] = $value;
