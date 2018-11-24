@@ -1049,6 +1049,8 @@ class DriverTest extends TestCase {
         
         $this->expectException(\Plasma\Exception::class);
         $this->expectExceptionMessage('Unexpected type for binding parameter: array');
+        
+        $this->await($prep);
     }
     
     function insertIntoTestString(int $colnum, string $value): array {
