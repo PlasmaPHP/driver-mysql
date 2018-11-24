@@ -856,6 +856,172 @@ class DriverTest extends TestCase {
         $this->assertSame('`hello\`_world`', $str);
     }
     
+    function testTextTypeString() {
+        $values = array();
+        
+        for($i = 0; $i < 18; $i++) {
+            $values[] = '""';
+        }
+        
+        $values[1] = '"hello_world"';
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->query($client, 'INSERT INTO `test_strings` VALUES ('.\implode(', ', $values).')');
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_strings`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\first($select);
+        $data = $this->await($dataProm);
+        
+        $this->await($driver->query($client, 'TRUNCATE TABLE `test_strings`'));
+        
+        $this->assertSame(array(
+            'testcol1' => '',
+            'testcol2' => 'hello_world',
+            'testcol3' => '',
+            'testcol4' => '',
+            'testcol5' => '',
+            'testcol6' => '',
+            'testcol7' => "\0\0\0",
+            'testcol8' => '',
+            'testcol9' => '',
+            'testcol10' => '',
+            'testcol11' => '',
+            'testcol12' => '',
+            'testcol13' => '',
+            'testcol14' => '',
+            'testcol15' => '',
+            'testcol16' => "\0",
+            'testcol17' => '0.0',
+            'testcol18' => ''
+        ), $data);
+    }
+    
+    function testTextTypeInt() {
+        $values = array(0, 0, 0, 2780, 0, 0);
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->query($client, 'INSERT INTO `test_ints` VALUES ('.\implode(', ', $values).')');
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\first($select);
+        $data = $this->await($dataProm);
+        
+        $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
+        
+        $this->assertSame(array(
+            'testcol1' => '00000',
+            'testcol2' => 0,
+            'testcol3' => '0000',
+            'testcol4' => 2780,
+            'testcol5' => 0,
+            'testcol6' => 0
+        ), $data);
+    }
+    
+    function testTextTypeFloat() {
+        $values = array(0.9, 4.3);
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->query($client, 'INSERT INTO `test_floats` VALUES ('.\implode(', ', $values).')');
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_floats`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\first($select);
+        $data = $this->await($dataProm);
+        
+        $this->await($driver->query($client, 'TRUNCATE TABLE `test_floats`'));
+        
+        // Round single precision float to 1 decimal
+        $data['testcol1'] = \round($data['testcol1'], 1);
+        
+        $this->assertSame(array(
+            'testcol1' => 0.9,
+            'testcol2' => 4.3
+        ), $data);
+    }
+    
+    function testTextTypeDate() {
+        $values = array('"2011-03-05"', '"2011-03-05 00:00:00"', '"23:41:03"', 'null');
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $this->await($driver->query($client, "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"));
+        
+        $prep = $driver->query($client, 'INSERT INTO `test_dates` VALUES ('.\implode(', ', $values).')');
+        $result = $this->await($prep);
+        
+        $this->assertSame(1, $result->getAffectedRows());
+        
+        $selprep = $driver->execute($client, 'SELECT * FROM `test_dates`');
+        $select = $this->await($selprep);
+        
+        $dataProm = \React\Promise\Stream\first($select);
+        $data = $this->await($dataProm);
+        
+        $this->await($driver->query($client, 'TRUNCATE TABLE `test_dates`'));
+        
+        $timestamp = \time();
+        $ts = $data['testcol4'];
+        unset($data['testcol4']);
+        
+        $this->assertSame(array(
+            'testcol1' => '2011-03-05',
+            'testcol2' => '2011-03-05 00:00:00',
+            'testcol3' => '0d 23:41:03'
+        ), $data);
+        
+        // We're happy if we're +/- 1 minute correct
+        $this->assertLessThanOrEqual(($timestamp + 60), $ts);
+        $this->assertGreaterThanOrEqual(($timestamp - 60), $ts);
+    }
+    
     function testUnsupportedTypeForBindingParameters() {
         $values = array();
         
@@ -883,8 +1049,6 @@ class DriverTest extends TestCase {
         
         $this->expectException(\Plasma\Exception::class);
         $this->expectExceptionMessage('Unexpected type for binding parameter: array');
-        
-        $result = $this->await($prep);
     }
     
     function insertIntoTestString(int $colnum, string $value): array {

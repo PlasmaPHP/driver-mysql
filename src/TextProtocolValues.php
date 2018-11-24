@@ -12,7 +12,6 @@ namespace Plasma\Drivers\MySQL;
 /**
  * Text protocol rowset values decoder.
  * @internal
- * @codeCoverageIgnore
  */
 class TextProtocolValues {
     /**
