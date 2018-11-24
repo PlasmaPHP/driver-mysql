@@ -812,6 +812,22 @@ class DriverTest extends TestCase {
         $this->assertSame('"hello \"world\""', $str);
     }
     
+    function testQuoteIdentifierQuotes() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $str = $driver->escapeUsingQuotes('UTF-8', 'hello`_world', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        $this->assertSame('`hello``_world`', $str);
+    }
+    
+    function testQuoteIdentifierBackslashes() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello`_world', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        $this->assertSame('`hello\`_world`', $str);
+    }
+    
     function insertIntoTestString(int $colnum, string $value): array {
         $values = array();
         

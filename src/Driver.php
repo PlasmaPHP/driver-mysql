@@ -440,11 +440,12 @@ class Driver implements \Plasma\DriverInterface {
     /**
      * Quotes the string for use in the query.
      * @param string  $str
+     * @param int     $type  For types, see the constants.
      * @return string
      * @throws \LogicException  Thrown if the driver does not support quoting.
      * @throws \Plasma\Exception
      */
-    function quote(string $str): string {
+    function quote(string $str, int $type = \Plasma\DriverInterface::QUOTE_TYPE_VALUE): string {
         if($this->parser === null) {
             throw new \Plasma\Exception('Unable to continue without connection');
         }
@@ -463,19 +464,24 @@ class Driver implements \Plasma\DriverInterface {
         $realCharset = $this->getRealCharset($dbCharset);
         
         if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_NO_BACKSLASH_ESCAPES) !== 0) {
-            return $this->escapeUsingQuotes($realCharset, $str);
+            return $this->escapeUsingQuotes($realCharset, $str, $type);
         }
         
-        return $this->escapeUsingBackslashes($realCharset, $str);
+        return $this->escapeUsingBackslashes($realCharset, $str, $type);
     }
     
     /**
      * Escapes using quotes.
      * @param string  $realCharset
      * @param string  $str
+     * @param int     $type
      * @return string
      */
-    function escapeUsingQuotes(string $realCharset, string $str): string {
+    function escapeUsingQuotes(string $realCharset, string $str, int $type): string {
+        if($type === \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER) {
+            return '`'.\str_replace('`', '``', $str).'`';
+        }
+        
         $escapeChars = array(
             '"',
             '\\',
@@ -493,9 +499,14 @@ class Driver implements \Plasma\DriverInterface {
      * Escapes using backslashes.
      * @param string  $realCharset
      * @param string  $str
+     * @param int     $type
      * @return string
      */
-    function escapeUsingBackslashes(string $realCharset, string $str): string {
+    function escapeUsingBackslashes(string $realCharset, string $str, int $type): string {
+        if($type === \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER) {
+            return '`'.\str_replace('`', '\\`', $str).'`';
+        }
+        
         $escapeChars = array(
             '\\',
             '"',
