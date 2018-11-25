@@ -147,7 +147,7 @@ class CapabilityFlags {
     const CLIENT_PLUGIN_AUTH = 524288;
     
     /**
-     * Expects the server to send sesson-state changes after a OK packet.
+     * Expects the server to send sesson-state changes.
      * @var int
      * @source
      */

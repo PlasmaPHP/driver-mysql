@@ -14,7 +14,7 @@ namespace Plasma\Drivers\MySQL;
  */
 class StatusFlags {
     /**
-    * A transaction is active.
+    * We are in a transaction.
     * @var int
     * @source
     */
@@ -70,7 +70,7 @@ class StatusFlags {
     const SERVER_STATUS_DB_DROPPED = 0x0100;
     
     /**
-    * There were no backslash escapes.
+    * Backslashes are not allowed for escaping.
     * @var int
     * @source
     */

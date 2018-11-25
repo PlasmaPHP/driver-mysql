@@ -228,7 +228,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const UNIQUE_KEY_FLAG = 0x4;
     
     /**
@@ -236,7 +235,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const MULTIPLE_KEY_FLAG = 0x8;
     
     /**
@@ -244,7 +242,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const BLOB_FLAG = 0x10;
     
     /**
@@ -252,7 +249,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const UNSIGNED_FLAG = 0x20;
     
     /**
@@ -260,7 +256,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const ZEROFILL_FLAG = 0x40;
     
     /**
@@ -268,7 +263,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const BINARY_FLAG = 0x80;
     
     /**
@@ -276,15 +270,13 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const ENUM_FLAG = 0x100;
     
     /**
-     * Whether the column automatically increments..
+     * Whether the column automatically increments.
      * @var int
      * @source
      */
-    
     const AUTO_INCREMENT_FLAG = 0x200;
     
     /**
@@ -292,7 +284,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const TIMESTAMP_FLAG = 0x400;
     
     /**
@@ -300,7 +291,6 @@ class FieldFlags {
      * @var int
      * @source
      */
-    
     const SET_FLAG = 0x800;
     
     /**
