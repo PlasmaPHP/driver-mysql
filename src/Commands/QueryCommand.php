@@ -82,7 +82,7 @@ class QueryCommand extends PromiseCommand {
             if($this->resolveValue !== null) {
                 $value->getParser()->markCommandAsFinished($this);
             } elseif($this->fieldsCount == 0 && $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) { // Matching 0 and null
-                $this->resolveValue = new \Plasma\QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID);
+                $this->resolveValue = new \Plasma\QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID, null, null);
                 $value->getParser()->markCommandAsFinished($this);
             } else {
                 $this->createResolve();
@@ -119,7 +119,7 @@ class QueryCommand extends PromiseCommand {
      * @return void
      */
     function createResolve(): void {
-        $this->resolveValue = new \Plasma\StreamQueryResult($this->driver, $this, 0, 0, $this->fields, null);
+        $this->resolveValue = new \Plasma\StreamQueryResult($this->driver, $this, 0, 0, null, $this->fields);
         $this->deferred->resolve($this->resolveValue);
     }
     

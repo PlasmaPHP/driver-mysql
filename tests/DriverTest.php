@@ -1025,7 +1025,7 @@ class DriverTest extends TestCase {
     function testUnsupportedTypeForBindingParameters() {
         $values = array();
         
-        for($i = 0; $i < 19; $i++) {
+        for($i = 0; $i < 18; $i++) {
             $values[] = '';
         }
         
@@ -1056,7 +1056,7 @@ class DriverTest extends TestCase {
     function insertIntoTestString(int $colnum, string $value): array {
         $values = array();
         
-        for($i = 0; $i < 19; $i++) {
+        for($i = 0; $i < 18; $i++) {
             if($colnum === $i) {
                 $values[] = $value;
             } else {
@@ -1548,7 +1548,7 @@ class DriverTest extends TestCase {
     function insertIntoTestInt(int $colnum, int $value): array {
         $values = array();
         
-        for($i = 0; $i < 7; $i++) {
+        for($i = 0; $i < 6; $i++) {
             if($colnum === $i) {
                 $values[] = $value;
             } else {
@@ -1586,7 +1586,7 @@ class DriverTest extends TestCase {
     }
     
     function testBinaryTypeTinyBoolean() {
-        $values = array(true, 0, 0, 0, 0, 0, 0);
+        $values = array(true, 0, 0, 0, 0, 0);
         
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);

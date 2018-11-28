@@ -156,24 +156,9 @@ class Statement implements \Plasma\StatementInterface {
             throw new \Plasma\Exception('Statement has been closed');
         }
         
-        if(\count($params) < \count($this->params)) {
-            throw new \Plasma\Exception('Not enough parameters for this statement, expected '.\count($this->params).', got '.\count($params));
-        }
+        $params = \Plasma\Utility::replaceParameters($this->rewrittenParams, $params);
         
-        $realParams = array();
-        $pos = (\array_key_exists(0, $params) ? 0 : 1);
-        
-        foreach($this->rewrittenParams as $param) {
-            $key = ($param[0] === ':' ? $param : ($pos++));
-            
-            if(!\array_key_exists($key, $params)) {
-                throw new \Plasma\Exception('Missing parameter with key "'.$key.'"');
-            }
-            
-            $realParams[] = $params[$key];
-        }
-        
-        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $realParams);
+        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $params);
         $this->driver->executeCommand($execute);
         
         return $execute->getPromise();
