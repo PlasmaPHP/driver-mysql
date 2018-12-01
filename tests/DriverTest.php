@@ -15,11 +15,6 @@ class DriverTest extends TestCase {
      */
     public $factory;
     
-    /**
-     * @var \Plasma\Drivers\MySQL\Driver
-     */
-     public $driver;
-    
     function setUp() {
         parent::setUp();
         $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array());
@@ -363,6 +358,50 @@ class DriverTest extends TestCase {
         
         $this->expectException(\LogicException::class);
         $this->await($promC2);
+    }
+    
+    function testRunMultipleCommands() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->exactly(3))
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $promC = $driver->runCommand($client, $ping);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
+        
+        $ping2 = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $promC2 = $driver->runCommand($client, $ping2);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC2);
+        
+        $ping3 = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $promC3 = $driver->runCommand($client, $ping3);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC3);
+        
+        $resolval = array();
+        
+        $promC->then(function () use (&$resolval) {
+            $resolval[] = 0;
+        });
+        
+        $promC2->then(function () use (&$resolval) {
+            $resolval[] = 1;
+        });
+        
+        $promC3->then(function () use (&$resolval) {
+            $resolval[] = 2;
+        });
+        
+        $this->await(\React\Promise\all(array($promC, $promC2, $promC3)));
+        $this->assertSame(array(0, 1, 2), $resolval);
     }
     
     function testQuery() {
