@@ -219,6 +219,8 @@ class Driver implements \Plasma\DriverInterface {
                 
                 $cmd = new \Plasma\Drivers\MySQL\Commands\QueryCommand($this, $query);
                 $this->executeCommand($cmd);
+                
+                return $cmd->getPromise();
             });
         }
         
@@ -819,7 +821,9 @@ class Driver implements \Plasma\DriverInterface {
         $auth = new \Plasma\Drivers\MySQL\Commands\HandshakeResponseCommand($this->parser, $message, $clientFlags, $plugin, $user, $password, $db);
         
         $auth->once('end', function () use (&$deferred) {
-            $deferred->resolve();
+            $this->loop->futureTick(function () use (&$deferred) {
+                $deferred->resolve();
+            });
         });
         
         $auth->once('error', function (\Throwable $error) use (&$deferred) {
