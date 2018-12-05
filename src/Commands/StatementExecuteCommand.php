@@ -73,14 +73,12 @@ class StatementExecuteCommand extends QueryCommand {
             }
             
             try {
-                $manager = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql');
-                $encode = $manager->encodeType($param);
+                $encode = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                    ->encodeType($param);
                 
                 $unsigned = $encode->isUnsigned();
                 $type = $encode->getSQLType();
                 $value = $encode->getValue();
-                
-                [ ,, $value ] = \Plasma\Drivers\MySQL\BinaryProtocolValues::encode($value);
             } catch (\Plasma\Exception $e) {
                 [ $unsigned, $type, $value ] = \Plasma\Drivers\MySQL\BinaryProtocolValues::encode($param);
             }
