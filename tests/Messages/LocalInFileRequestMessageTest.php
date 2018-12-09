@@ -7,9 +7,9 @@
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
 */
 
-namespace Plasma\Drivers\MySQL\Tests;
+namespace Plasma\Drivers\MySQL\Tests\Messages;
 
-class LocalInFileRequestMessageTest extends TestCase {
+class LocalInFileRequestMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     function testGetID() {
         $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
             ->disableOriginalConstructor()

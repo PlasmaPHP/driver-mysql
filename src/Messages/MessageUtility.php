@@ -12,13 +12,13 @@ namespace Plasma\Drivers\MySQL\Messages;
 /**
  * Utilities for messages.
  * @internal
- * @codeCoverageIgnore
  */
 class MessageUtility {
     /**
      * Debug.
      * @param mixed $debug
      * @return void
+     * @codeCoverageIgnore
      */
     static function debug($debug): void {
         if(\getenv('PLASMA_DEBUG')) {

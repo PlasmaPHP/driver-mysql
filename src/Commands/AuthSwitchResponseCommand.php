@@ -12,7 +12,6 @@ namespace Plasma\Drivers\MySQL\Commands;
 /**
  * Auth Switch Response command.
  * @internal
- * @codeCoverageIgnore
  */
 class AuthSwitchResponseCommand implements CommandInterface {
     use \Evenement\EventEmitterTrait;

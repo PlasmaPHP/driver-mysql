@@ -7,9 +7,9 @@
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
 */
 
-namespace Plasma\Drivers\MySQL\Tests;
+namespace Plasma\Drivers\MySQL\Tests\Commands;
 
-class QuitCommandTest extends TestCase {
+class QuitCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     function testGetEncodedMessage() {
         $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
         $this->assertFalse($command->hasFinished());

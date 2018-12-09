@@ -12,7 +12,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 /**
  * Represents a Auth More Data Message.
  * @internal
- * @codeCoverageIgnore
  */
 class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**

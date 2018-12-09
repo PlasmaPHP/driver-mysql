@@ -12,7 +12,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 /**
  * Represents an EOF Message.
  * @internal
- * @codeCoverageIgnore
  */
 class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
