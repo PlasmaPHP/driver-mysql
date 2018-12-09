@@ -38,7 +38,7 @@ class SSLRequestCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
         $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
         $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
         
-        $this->assertSame(0, $command->setParserState());
+        $this->assertSame(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE, $command->setParserState());
     }
     
     function testOnComplete() {
@@ -101,7 +101,7 @@ class SSLRequestCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
         $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
         $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
         
-        $this->assertTrue($command->waitForCompletion());
+        $this->assertFalse($command->waitForCompletion());
     }
     
     function testResetSequence() {

@@ -15,7 +15,7 @@ namespace Plasma\Drivers\MySQL\Messages;
  */
 class ParseException extends \Plasma\Exception {
     /**
-     * @var int
+     * @var int|null
      */
     protected $state;
     

@@ -9,40 +9,28 @@
 
 namespace Plasma\Drivers\MySQL\Tests\Messages;
 
-class LocalInFileRequestMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+class AuthMoreDataMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     function testGetID() {
         $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
-        $this->assertSame("\xFB", $message->getID());
+        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
+        $this->assertSame("\x01", $message->getID());
     }
     
     function testParseMessage() {
         $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
             ->disableOriginalConstructor()
-            ->setMethods(array(
-                'sendPacket'
-            ))
             ->getMock();
         
-        $parser
-            ->expects($this->at(0))
-            ->method('sendPacket')
-            ->with(\file_get_contents(__FILE__));
-        
-        $parser
-            ->expects($this->at(1))
-            ->method('sendPacket')
-            ->with('');
-        
-        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
+        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
         
         $buffer = new \Plasma\BinaryBuffer();
         $buffer->append(__FILE__);
         
         $this->assertTrue($message->parseMessage($buffer));
+        $this->assertSame(__FILE__, $message->authPluginData);
     }
     
     function testGetParser() {
@@ -50,7 +38,7 @@ class LocalInFileRequestMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
+        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
         $this->assertSame($parser, $message->getParser());
     }
     
@@ -59,7 +47,7 @@ class LocalInFileRequestMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
-        $this->assertSame(-1, $message->setParserState());
+        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
+        $this->assertSame(\Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH, $message->setParserState());
     }
 }
