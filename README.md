@@ -1,6 +1,6 @@
 # Plasma Driver MySQL/MariaDB [![Build Status](https://travis-ci.org/PlasmaPHP/driver-mysql.svg?branch=master)](https://travis-ci.org/PlasmaPHP/driver-mysql) [![Build Status](https://scrutinizer-ci.com/g/PlasmaPHP/driver-mysql/badges/build.png?b=master)](https://scrutinizer-ci.com/g/PlasmaPHP/driver-mysql/build-status/master) [![Code Coverage](https://scrutinizer-ci.com/g/PlasmaPHP/driver-mysql/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/PlasmaPHP/driver-mysql/?branch=master)
 
-Plasma aims to be an asynchronous, non-blocking (data access) Database Abstraction Layer. This is the MySQL/MariaDB driver for Plasma.
+Plasma provides an asynchronous, non-blocking (data access) Database Abstraction Layer. This is the MySQL/MariaDB driver for Plasma.
 
 The driver uses ReactPHP to asychronously interface with the database server.
 
