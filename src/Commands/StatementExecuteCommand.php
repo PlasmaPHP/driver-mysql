@@ -32,17 +32,24 @@ class StatementExecuteCommand extends QueryCommand {
     protected $params;
     
     /**
-     * Constructor.
-     * @param \Plasma\DriverInterface  $driver
-     * @param mixed                    $id
-     * @param string                   $query
-     * @param array                    $params
+     * @var \Plasma\ColumnDefinitionInterface[]
      */
-    function __construct(\Plasma\DriverInterface $driver, $id, string $query, array $params) {
+    protected $paramsDef;
+    
+    /**
+     * Constructor.
+     * @param \Plasma\DriverInterface              $driver
+     * @param mixed                                $id
+     * @param string                               $query
+     * @param array                                $params
+     * @param \Plasma\ColumnDefinitionInterface[]  $paramsDef
+     */
+    function __construct(\Plasma\DriverInterface $driver, $id, string $query, array $params, array $paramsDef) {
         parent::__construct($driver, $query);
         
         $this->id = $id;
         $this->params = $params;
+        $this->paramsDef = $paramsDef;
     }
     
     /**
@@ -74,7 +81,7 @@ class StatementExecuteCommand extends QueryCommand {
             
             try {
                 $encode = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
-                    ->encodeType($param);
+                    ->encodeType($param, $this->paramsDef[$id]);
                 
                 $unsigned = $encode->isUnsigned();
                 $type = $encode->getSQLType();

@@ -32,7 +32,8 @@ class DriverFactoryTest extends TestCase {
                 'dir',
                 'link',
                 'getContents',
-                'setInvoker'
+                'setInvoker',
+                'constructLink'
             ))
             ->getMock();
         

@@ -158,7 +158,7 @@ class Statement implements \Plasma\StatementInterface {
         
         $params = \Plasma\Utility::replaceParameters($this->rewrittenParams, $params);
         
-        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $params);
+        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $params, $this->params);
         $this->driver->executeCommand($execute);
         
         return $execute->getPromise();
