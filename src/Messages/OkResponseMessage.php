@@ -112,8 +112,7 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
             }
             
             return true;
-        } catch (\InvalidArgumentException $e) {
-            echo $e.PHP_EOL;
+        } catch (\OverflowException $e) {
             return false;
         }
     }

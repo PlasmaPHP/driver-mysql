@@ -62,7 +62,7 @@ class AuthSwitchRequestMessage implements \Plasma\Drivers\MySQL\Messages\Message
             }
             
             return true;
-        } catch (\InvalidArgumentException $e) {
+        } catch (\OverflowException $e) {
             return false;
         }
     }
