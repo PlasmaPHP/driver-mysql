@@ -33,6 +33,11 @@ class Driver implements \Plasma\DriverInterface {
     );
     
     /**
+     * @var string[]
+     */
+    protected $allowedSchemes = array('mysql', 'tcp', 'unix');
+    
+    /**
      * @var \React\Socket\ConnectorInterface
      */
     protected $connector;
@@ -156,7 +161,7 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         $parts = \parse_url($uri);
-        if(!isset($parts['scheme']) || !isset($parts['host'])) {
+        if(!isset($parts['scheme']) || !isset($parts['host']) || !\in_array($parts['scheme'], $this->allowedSchemes)) {
             return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));
         }
         
@@ -164,7 +169,7 @@ class Driver implements \Plasma\DriverInterface {
             $parts['scheme'] = 'tcp';
         }
         
-        $host = $parts['scheme'].'://'.$parts['host'].':'.($parts['port'] ?? 3306);
+        $host = $parts['scheme'].'://'.$parts['host'].($parts['scheme'] !== 'unix' ? ':'.($parts['port'] ?? 3306) : '');
         $this->connectionState = static::CONNECTION_STARTED;
         $resolved = false;
         

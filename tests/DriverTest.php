@@ -127,6 +127,17 @@ class DriverTest extends TestCase {
         $this->await($prom);
     }
     
+    function testConnectInvalidScheme() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $driver->connect('dns://localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->await($prom);
+    }
+    
     /**
      * @group tls
      */
