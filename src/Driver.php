@@ -151,14 +151,20 @@ class Driver implements \Plasma\DriverInterface {
             return $this->connectPromise;
         }
         
-        $uri = 'mysql://'.\ltrim($uri, 'mysql://');
+        if(\strpos($uri, '://') === false) {
+            $uri = 'tcp://'.$uri;
+        }
         
         $parts = \parse_url($uri);
-        if(!isset($parts['host'])) {
+        if(!isset($parts['scheme']) || !isset($parts['host'])) {
             return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));
         }
         
-        $host = $parts['host'].':'.($parts['port'] ?? 3306);
+        if($parts['scheme'] === 'mysql') {
+            $parts['scheme'] = 'tcp';
+        }
+        
+        $host = $parts['scheme'].'://'.$parts['host'].':'.($parts['port'] ?? 3306);
         $this->connectionState = static::CONNECTION_STARTED;
         $resolved = false;
         

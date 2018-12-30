@@ -20,10 +20,10 @@ class DriverTest extends TestCase {
         $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array());
     }
     
-    function connect(\Plasma\DriverInterface $driver, string $uri): \React\Promise\PromiseInterface {
+    function connect(\Plasma\DriverInterface $driver, string $uri, string $scheme = 'tcp'): \React\Promise\PromiseInterface {
         $creds = (\getenv('MDB_USER') ? \getenv('MDB_USER').':'.\getenv('MDB_PASSWORD').'@' : 'root:@');
         
-        return $driver->connect($creds.$uri);
+        return $driver->connect($scheme.'://'.$creds.$uri);
     }
     
     function testGetLoop() {
@@ -76,7 +76,7 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost');
+        $prom = $this->connect($driver, 'localhost', 'mysql');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
