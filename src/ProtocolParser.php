@@ -211,17 +211,27 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     function sendPacket(string $packet): void {
-        $maxSize = static::CLIENT_MAX_PACKET_SIZE - 4;
+        $initPacklen = \strlen($packet);
         
         do {
-            $partial = \substr($packet, 0, $maxSize);
-            $packet = \substr($packet, $maxSize);
+            $partial = \substr($packet, 0, static::CLIENT_MAX_PACKET_SIZE);
+            $partlen = \strlen($partial);
             
-            $length = \Plasma\BinaryBuffer::writeInt3(\strlen($partial));
+            $packet = \substr($packet, static::CLIENT_MAX_PACKET_SIZE);
+            $packlen = \strlen($packet);
+            
+            $length = \Plasma\BinaryBuffer::writeInt3($partlen);
             $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
             
             $this->connection->write($length.$sequence.$partial);
-        } while(\strlen($packet) > $maxSize);
+        } while($packlen > static::CLIENT_MAX_PACKET_SIZE);
+        
+        // If the packet is exactly the max size, we have to send two packets
+        if($initPacklen === static::CLIENT_MAX_PACKET_SIZE) {
+            $length = \Plasma\BinaryBuffer::writeInt3(0);
+            $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
+            $this->connection->write($length.$sequence);
+        }
     }
     
     /**
@@ -292,7 +302,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('First 10 bytes: '.implode(', ', unpack('C*', \substr($this->buffer->getContents(), 0, 10)))) || true));
         //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Read packet header length ('.$length.') and sequence ('.$this->sequenceID.')') || true));
         
-        if($length === 0xFFFFFF) {
+        if($length === static::CLIENT_MAX_PACKET_SIZE) {
             $this->buffer->read(($length + 4));
             $this->messageBuffer->append($buffer->read($length));
             
