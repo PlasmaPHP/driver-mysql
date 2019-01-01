@@ -916,15 +916,13 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \InvalidArgumentException
      */
     protected function validateOptions(array $options) {
-        $validator = \CharlotteDunois\Validation\Validator::make($options, array(
+        \CharlotteDunois\Validation\Validator::make($options, array(
             'characters.set' => 'string',
             'characters.collate' => 'string',
-            'connector' => 'class:\React\Socket\ConnectorInterface=object',
+            'connector' => 'class:'.\React\Socket\ConnectorInterface::class.'=object',
             'tls.context' => 'array',
             'tls.force' => 'boolean',
             'tls.forceLocal' => 'boolean'
-        ));
-        
-        $validator->throw(\InvalidArgumentException::class);
+        ))->throw(\InvalidArgumentException::class);
     }
 }
