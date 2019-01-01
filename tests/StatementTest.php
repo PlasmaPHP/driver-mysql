@@ -1,7 +1,7 @@
 <?php
 /**
  * Plasma Driver MySQL component
- * Copyright 2018 PlasmaPHP, All Rights Reserved
+ * Copyright 2018-2019 PlasmaPHP, All Rights Reserved
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
