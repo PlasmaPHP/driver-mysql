@@ -35,7 +35,7 @@ class Driver implements \Plasma\DriverInterface {
     /**
      * @var string[]
      */
-    protected $allowedSchemes = array('mysql', 'tcp', 'unix');
+    protected $allowedSchemes = array('mysql', 'tcp', 'tls', 'unix');
     
     /**
      * @var \React\Socket\ConnectorInterface

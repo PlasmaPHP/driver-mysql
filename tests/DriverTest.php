@@ -502,10 +502,12 @@ class DriverTest extends TestCase {
     }
     
     function testQueryConnectionCharset() {
-        $driver = $this->factory->createDriver();
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.set' => 'utf8'));
+        
+        $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema?charset=utf8mb4');
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
@@ -518,7 +520,7 @@ class DriverTest extends TestCase {
             ->method('checkinConnection')
             ->with($driver);
         
-        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "character\_set\_%"');
+        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "character\_set\_connection"');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
@@ -536,13 +538,55 @@ class DriverTest extends TestCase {
         });
         
         $res->on('data', function ($row) use (&$data) {
-            if($row['Variable_name'] === 'character_set_connection') {
-                $data = $row;
-            }
+            $data = $row;
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(array('Variable_name' => 'character_set_connection', 'Value' => 'utf8mb4'), $data);
+        $this->assertSame(array('Variable_name' => 'character_set_connection', 'Value' => 'utf8'), $data);
+    }
+    
+    function testQueryConnectionCollate() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.collate' => 'utf8mb4_bin'));
+        
+        $driver = $factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "collation\_connection"');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = null;
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            $data = $row;
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertSame(array('Variable_name' => 'collation_connection', 'Value' => 'utf8mb4_bin'), $data);
     }
     
     function testPrepare() {
