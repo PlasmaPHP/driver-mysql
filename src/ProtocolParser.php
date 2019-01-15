@@ -530,7 +530,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         $compressed = \zlib_encode($packet, \ZLIB_ENCODING_DEFLATE);
         $compresslen = \Plasma\BinaryBuffer::writeInt3(\strlen($compressed));
         
-        return $comrpesslen.$id.$compressed;
+        return $compresslen.$id.$compressed;
     }
     
     /**
