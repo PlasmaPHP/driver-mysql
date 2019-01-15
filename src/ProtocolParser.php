@@ -107,7 +107,33 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @var int
      * @see https://dev.mysql.com/doc/internals/en/sequence-id.html
      */
-    protected $sequenceID = 0;
+    protected $sequenceID = -1;
+    
+    /**
+     * Whether we use compression.
+     * @var bool
+     */
+    protected $compressionEnabled = false;
+    
+    /**
+     * The compression ID is incremented with each packet and may wrap around.
+     * The compression ID is independent to the sequence ID.
+     * @var int
+     * @see https://dev.mysql.com/doc/internals/en/compressed-packet-header.html
+     */
+    protected $compressionID = -1;
+    
+    /**
+     * Small packets should not be compressed. This defines a minimum size for compression.
+     * @var int
+     * @see https://dev.mysql.com/doc/internals/en/uncompressed-payload.html
+     */
+    protected $compressionSizeThreshold = 50;
+    
+    /**
+     * @var \Plasma\BinaryBuffer
+     */
+    protected $compressionBuffer;
     
     /**
      * @var \Plasma\Drivers\MySQL\Messages\HandshakeMessage|null
@@ -140,6 +166,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         
         $this->buffer = new \Plasma\BinaryBuffer();
         $this->messageBuffer = new \Plasma\BinaryBuffer();
+        $this->compressionBuffer = new \Plasma\BinaryBuffer();
         
         $this->addEvents();
     }
@@ -206,6 +233,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     }
     
     /**
+     * Enables compression.
+     * @return void
+     */
+    function enableCompression(): void {
+        $this->compressionEnabled = true;
+    }
+    
+    /**
      * Sends a packet to the server.
      * @param string  $packet
      * @return void
@@ -223,7 +258,13 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $length = \Plasma\BinaryBuffer::writeInt3($partlen);
             $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
             
-            $this->connection->write($length.$sequence.$partial);
+            $packet = $length.$sequence.$partial;
+            
+            if($this->compressionEnabled && $this->state === static::STATE_OK) {
+                $packet = $this->compressPacket($packet);
+            }
+            
+            $this->connection->write($packet);
         } while($packlen > static::CLIENT_MAX_PACKET_SIZE);
         
         // If the packet is exactly the max size, we have to send two packets
@@ -266,14 +307,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         
         if(!($command instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) || $command->resetSequence()) {
             $this->sequenceID = -1;
+            $this->compressionID = -1;
         }
-        
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Processing command '.get_class($command)) || true));
         
         $this->sendPacket($command->getEncodedMessage());
         
         if($command !== $this->currentCommand || !$command->waitForCompletion()) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Mark command as completed') || true));
             $command->onComplete();
             
             if($command === $this->currentCommand) {
@@ -287,10 +326,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     protected function processBuffer() {
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('ProtocolParser::processBuffer called') || true));
-        
         if($this->buffer->getSize() < 4) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Not enough data received for packet header ('.$this->buffer->getSize().')') || true));
             return;
         }
         
@@ -299,14 +335,9 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         $length = $buffer->readInt3();
         $this->sequenceID = $buffer->readInt1();
         
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('First 10 bytes: '.implode(', ', unpack('C*', \substr($this->buffer->getContents(), 0, 10)))) || true));
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Read packet header length ('.$length.') and sequence ('.$this->sequenceID.')') || true));
-        
         if($length === static::CLIENT_MAX_PACKET_SIZE) {
             $this->buffer->read(($length + 4));
             $this->messageBuffer->append($buffer->read($length));
-            
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, 16mb packet received, waiting for the last one to arrive') || true));
             return;
         } elseif($this->messageBuffer->getSize() > 0) {
             $this->messageBuffer->append($buffer->read($length));
@@ -315,7 +346,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         if($buffer->getSize() < $length) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned, insufficent length: '.$buffer->getSize().', '.$length.' required') || true));
             return;
         }
         
@@ -327,7 +357,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         if($buffer->getSize() === 0) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Buffer length is 0') || true));
             return;
         }
         
@@ -338,7 +367,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
         } else {
             $firstChar = $buffer->read(1);
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message char "'.$firstChar.'" (0x'.\dechex(\ord($firstChar)).') - buffer length: '.$buffer->getSize()) || true));
             
             $okRespID = \Plasma\Drivers\MySQL\Messages\OkResponseMessage::getID();
             $isOkMessage = (
@@ -388,11 +416,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                         }
                     }
                     
-                    //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Left over buffer: '.$buffer->getSize()) || true));
-                    
                     if($this->buffer->getSize() > 0) {
-                        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Scheduling future read with '.$this->buffer->getSize().' bytes') || true));
-                        
                         $this->driver->getLoop()->futureTick(function () {
                             $this->processBuffer();
                         });
@@ -402,8 +426,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 break;
             }
         }
-        
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Message '.\get_class($message)) || true));
         
         $state = $message->setParserState();
         if($state !== -1) {
@@ -427,7 +449,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         try {
             $buffer = $message->parseMessage($buffer);
             if(!$buffer) {
-                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('returned handle (unsufficent buffer length)') || true));
                 return;
             }
             
@@ -460,8 +481,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     }
                 }
             } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
-                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Received Error Response Message with message: '.$message->errorMessage) || true));
-                
                 $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
                 $this->emit('error', array($error));
             }
@@ -488,11 +507,74 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         if($this->buffer->getSize() > 0) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Scheduling future read (msg) with '.$this->buffer->getSize().' bytes') || true));
-            
             $this->driver->getLoop()->futureTick(function () {
                 $this->processBuffer();
             });
+        }
+    }
+    
+    /**
+     * Compresses a packet.
+     * @param string  $packet
+     * @return string
+     */
+    protected function compressPacket(string $packet): string {
+        $length = \strlen($packet);
+        $packetlen = \Plasma\BinaryBuffer::writeInt3($length);
+        $id = \Plasma\BinaryBuffer::writeInt1((++$this->compressionID));
+        
+        if($length < $this->compressionSizeThreshold) {
+            return $packetlen.$id.\Plasma\BinaryBuffer::writeInt3(0).$packet;
+        }
+        
+        $compressed = \zlib_encode($packet, \ZLIB_ENCODING_DEFLATE);
+        $compresslen = \Plasma\BinaryBuffer::writeInt3(\strlen($compressed));
+        
+        return $compresslen.$id.$compressed;
+    }
+    
+    /**
+     * Decompresses the buffer.
+     * @return void
+     */
+    protected function decompressBuffer(): void {
+        $buffer = new \Plasma\BinaryBuffer();
+        
+        // Copy packet header to new buffer
+        for($i = 0; $i < 7; $i++) {
+            $buffer->append($this->compressionBuffer[$i]);
+        }
+        
+        $length = $buffer->readInt3();
+        $this->compressionID = $buffer->readInt1();
+        $uncompressedLength = $buffer->readInt3();
+        
+        if(($this->compressionBuffer->getSize() - 7) < $length) {
+            return;
+        }
+        
+        $this->compressionBuffer->read(7);
+        $buffer = null;
+        
+        if($uncompressedLength === 0) {
+            $this->buffer->append($this->compressionBuffer->read($length));
+            return;
+        }
+        
+        $rawPacket = $this->compressionBuffer->read($length);
+        $packet = \zlib_decode($rawPacket, $uncompressedLength);
+        
+        if(\strlen($packet) !== $uncompressedLength) {
+            $packet = "\xFF\x00\x00\x00     Invalid compressed packet";
+            $this->connection->end($packet);
+            
+            return;
+        }
+        
+        $this->buffer->append($packet);
+        
+        if($this->compressionBuffer->getSize() > 7) {
+            $this->decompressBuffer();
         }
     }
     
@@ -502,7 +584,16 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      */
     protected function addEvents() {
         $this->connection->on('data', function ($chunk) {
-            $this->buffer->append($chunk);
+            if($this->compressionEnabled && $this->state === static::STATE_OK) {
+                $this->compressionBuffer->append($chunk);
+                
+                if($this->compressionBuffer->getSize() > 7) {
+                    $this->decompressBuffer();
+                }
+            } else {
+                $this->buffer->append($chunk);
+            }
+            
             $this->processBuffer();
         });
         
@@ -519,5 +610,9 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         if($this->state === static::STATE_AUTH || $this->state === static::STATE_AUTH_SENT) {
             $this->state = static::STATE_AUTH_ERROR;
         }
+        
+        $this->buffer->clear();
+        $this->messageBuffer->clear();
+        $this->compressionBuffer->clear();
     }
 }

@@ -17,7 +17,7 @@ class DriverTest extends TestCase {
     
     function setUp() {
         parent::setUp();
-        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array());
+        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false));
     }
     
     function connect(\Plasma\DriverInterface $driver, string $uri, string $scheme = 'tcp'): \React\Promise\PromiseInterface {
@@ -142,7 +142,7 @@ class DriverTest extends TestCase {
      * @group tls
      */
     function testConnectForceTLSLocalhost() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.forceLocal' => true));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
@@ -158,7 +158,7 @@ class DriverTest extends TestCase {
      * @group tls
      */
     function testConnectForceTLSLocalhostIgnored() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
@@ -174,7 +174,7 @@ class DriverTest extends TestCase {
      * @group tls
      */
     function testConnectForceTLSIgnoredSecureServer() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
@@ -190,7 +190,7 @@ class DriverTest extends TestCase {
      * @group tls
      */
     function testConnectForceTLSFailure() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('tls.force' => true, 'tls.forceLocal' => true));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
@@ -502,7 +502,7 @@ class DriverTest extends TestCase {
     }
     
     function testQueryConnectionCharset() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.set' => 'utf8'));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.set' => 'utf8', 'compression.enable' => false));
         
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -546,7 +546,7 @@ class DriverTest extends TestCase {
     }
     
     function testQueryConnectionCollate() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.collate' => 'utf8mb4_bin'));
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.collate' => 'utf8mb4_bin', 'compression.enable' => false));
         
         $driver = $factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -587,6 +587,94 @@ class DriverTest extends TestCase {
         
         $this->await($deferred->promise());
         $this->assertSame(array('Variable_name' => 'collation_connection', 'Value' => 'utf8mb4_bin'), $data);
+    }
+    
+    function testQueryCompressionEnabledPassthrough() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => true));
+        
+        $driver = $factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'SELECT 1');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = array();
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            $data[] = $row;
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertSame(1, \count($data));
+    }
+    
+    function testQueryCompressionEnabled() {
+        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => true));
+        
+        $driver = $factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "%\_connection%"');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $res = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        
+        $data = array();
+        $deferred = new \React\Promise\Deferred();
+        
+        $res->once('close', function () use (&$deferred) {
+            $deferred->resolve();
+        });
+        
+        $res->on('error', function (\Throwable $e) use (&$deferred) {
+            $deferred->reject($e);
+        });
+        
+        $res->on('data', function ($row) use (&$data) {
+            $data[] = $row;
+        });
+        
+        $this->await($deferred->promise());
+        $this->assertGreaterThanOrEqual(1, \count($data));
     }
     
     function testPrepare() {
