@@ -27,6 +27,7 @@ class Driver implements \Plasma\DriverInterface {
     protected $options = array(
         'characters.set' => 'utf8mb4',
         'characters.collate' => null,
+        'compression.enable' => true,
         'tls.context' => array(),
         'tls.force' => true,
         'tls.forceLocal' => false
@@ -639,10 +640,8 @@ class Driver implements \Plasma\DriverInterface {
      */
     function executeCommand(\Plasma\CommandInterface $command): void {
         $this->queue[] = $command;
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' added to queue') || true));
         
         if($this->parser && $this->busy === static::STATE_IDLE) {
-            //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' invoked into parser') || true));
             $this->parser->invokeCommand($this->getNextCommand());
         }
     }
@@ -678,20 +677,16 @@ class Driver implements \Plasma\DriverInterface {
         /** @var \Plasma\CommandInterface  $command */
         $command =  \array_shift($this->queue);
         
-        //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Unshifted command '.get_class($command)) || true));
-        
         if($command->waitForCompletion()) {
             $this->busy = static::STATE_BUSY;
             
             $command->once('error', function () use (&$command) {
-                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' errored') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
             });
             
             $command->once('end', function () use (&$command) {
-                //\assert((\Plasma\Drivers\MySQL\Messages\MessageUtility::debug('Command '.get_class($command).' ended') || true));
                 $this->busy = static::STATE_IDLE;
                 
                 $this->endCommand();
@@ -739,6 +734,11 @@ class Driver implements \Plasma\DriverInterface {
                 
                 if($this->charset === null) {
                     $this->charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$message->characterSet] ?? 'latin1';
+                }
+                
+                if(($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_COMPRESS) !== 0 && \extension_loaded('zlib') && $this->options['compression.enable']) {
+                    $this->parser->enableCompression();
+                    $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_COMPRESS;
                 }
                 
                 // Check if we support auth plugins

@@ -45,12 +45,12 @@ class ProtolParserTest extends TestCase {
         $connection
             ->expects($this->at(0))
             ->method('write')
-            ->with(\Plasma\BinaryBuffer::writeInt3($max).\Plasma\BinaryBuffer::writeInt1(1).$data);
+            ->with(\Plasma\BinaryBuffer::writeInt3($max).\Plasma\BinaryBuffer::writeInt1(0).$data);
         
         $connection
             ->expects($this->at(1))
             ->method('write')
-            ->with(\Plasma\BinaryBuffer::writeInt3(0).\Plasma\BinaryBuffer::writeInt1(2));
+            ->with(\Plasma\BinaryBuffer::writeInt3(0).\Plasma\BinaryBuffer::writeInt1(1));
         
         $parser->sendPacket($data);
     }
