@@ -919,7 +919,7 @@ class Driver implements \Plasma\DriverInterface {
         \CharlotteDunois\Validation\Validator::make($options, array(
             'characters.set' => 'string',
             'characters.collate' => 'string',
-            'compression.enable' => 'bool',
+            'compression.enable' => 'boolean',
             'connector' => 'class:'.\React\Socket\ConnectorInterface::class.'=object',
             'tls.context' => 'array',
             'tls.force' => 'boolean',
