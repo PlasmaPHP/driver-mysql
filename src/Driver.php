@@ -924,6 +924,6 @@ class Driver implements \Plasma\DriverInterface {
             'tls.context' => 'array',
             'tls.force' => 'boolean',
             'tls.forceLocal' => 'boolean'
-        ))->throw(\InvalidArgumentException::class);
+        ), true)->throw(\InvalidArgumentException::class);
     }
 }
