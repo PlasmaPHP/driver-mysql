@@ -271,7 +271,13 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         if($initPacklen === static::CLIENT_MAX_PACKET_SIZE) {
             $length = \Plasma\BinaryBuffer::writeInt3(0);
             $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
-            $this->connection->write($length.$sequence);
+            $packet = $length.$sequence;
+            
+            if($this->compressionEnabled && $this->state === static::STATE_OK) {
+                $packet = $this->compressPacket($packet);
+            }
+            
+            $this->connection->write($packet);
         }
     }
     
