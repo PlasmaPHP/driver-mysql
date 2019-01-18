@@ -46,6 +46,7 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
      *     'characters.set' => string, (the character set to use, defaults to utf8mb4)
      *     'characters.collate' => string, (the collate to use, defaults to the charset default)
      *     'compression.enable' => bool, (whether compression should be used if available, defaults to true)
+     *     'packet.maxAllowedSize' => int, (maximum allowed packet size of the server, defaults to 16MB)
      *     'tls.context' => array, (socket TLS context options)
      *     'tls.force' => bool, (whether non-localhost connections are forced to use TLS, defaults to true)
      *     'tls.forceLocal' => bool, (whether localhost connections are forced to use TLS, defaults to false)

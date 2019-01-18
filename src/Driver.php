@@ -28,6 +28,7 @@ class Driver implements \Plasma\DriverInterface {
         'characters.set' => 'utf8mb4',
         'characters.collate' => null,
         'compression.enable' => true,
+        'packet.maxAllowedSize' => \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE,
         'tls.context' => array(),
         'tls.force' => true,
         'tls.forceLocal' => false
@@ -196,7 +197,7 @@ class Driver implements \Plasma\DriverInterface {
             });
             
             $deferred = new \React\Promise\Deferred();
-            $this->parser = new \Plasma\Drivers\MySQL\ProtocolParser($this, $this->connection);
+            $this->parser = new \Plasma\Drivers\MySQL\ProtocolParser($this, $this->connection, $this->options['packet.maxAllowedSize']);
             
             $this->parser->on('error', function (\Throwable $error) use (&$deferred, &$resolved) {
                 if($resolved) {
@@ -921,6 +922,7 @@ class Driver implements \Plasma\DriverInterface {
             'characters.collate' => 'string',
             'compression.enable' => 'boolean',
             'connector' => 'class:'.\React\Socket\ConnectorInterface::class.'=object',
+            'packet.maxAllowedSize' => 'integer|min:0|max:'.\Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE,
             'tls.context' => 'array',
             'tls.force' => 'boolean',
             'tls.forceLocal' => 'boolean'
