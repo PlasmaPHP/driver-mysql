@@ -443,7 +443,7 @@ class Driver implements \Plasma\DriverInterface {
         return $this->prepare($client, $query)->then(function (\Plasma\StatementInterface $statement) use ($params) {
             return $statement->execute($params)->then(function (\Plasma\QueryResultInterface $result) use (&$statement) {
                 if($result instanceof \Plasma\StreamQueryResultInterface) {
-                    $statement->close(null, function (\Throwable $error) {
+                    $statement->close()->then(null, function (\Throwable $error) {
                         $this->emit('error', array($error));
                     });
                     
