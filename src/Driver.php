@@ -113,6 +113,15 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Destructor.
+     * @return void
+     * @internal
+     */
+    function __destruct() {
+        $this->close();
+    }
+    
+    /**
      * Returns the event loop.
      * @return \React\EventLoop\LoopInterface
      */
