@@ -69,7 +69,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     /**
      * @var int
      */
-    const CLIENT_MAX_PACKET_SIZE = 0x1000000;
+    const CLIENT_MAX_PACKET_SIZE = 0xFFFFFF;
     
     /**
      * @var int
@@ -85,11 +85,6 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @var \React\Socket\ConnectionInterface
      */
     protected $connection;
-    
-    /**
-     * @var int
-     */
-    protected $maxAllowedPacket;
     
     /**
      * @var int
@@ -164,12 +159,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * Constructor.
      * @param \Plasma\Drivers\MySQL\Driver       $driver
      * @param \React\Socket\ConnectionInterface  $connection
-     * @param int|null                           $maxAllowedPacket
      */
-    function __construct(\Plasma\Drivers\MySQL\Driver $driver, \React\Socket\ConnectionInterface $connection, ?int $maxAllowedPacket = null) {
+    function __construct(\Plasma\Drivers\MySQL\Driver $driver, \React\Socket\ConnectionInterface $connection) {
         $this->driver = $driver;
         $this->connection = $connection;
-        $this->maxAllowedPacket = $maxAllowedPacket ?? static::CLIENT_MAX_PACKET_SIZE;
         
         $this->buffer = new \Plasma\BinaryBuffer();
         $this->messageBuffer = new \Plasma\BinaryBuffer();
@@ -256,10 +249,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         $initPacklen = \strlen($packet);
         
         do {
-            $partial = \substr($packet, 0, $this->maxAllowedPacket);
+            $partial = \substr($packet, 0, static::CLIENT_MAX_PACKET_SIZE);
             $partlen = \strlen($partial);
             
-            $packet = \substr($packet, $this->maxAllowedPacket);
+            $packet = \substr($packet, static::CLIENT_MAX_PACKET_SIZE);
             $packlen = \strlen($packet);
             
             $length = \Plasma\BinaryBuffer::writeInt3($partlen);
@@ -272,10 +265,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             }
             
             $this->connection->write($packet);
-        } while($packlen > $this->maxAllowedPacket);
+        } while($packlen > static::CLIENT_MAX_PACKET_SIZE);
         
         // If the packet is exactly the max size, we have to send two packets
-        if($initPacklen === $this->maxAllowedPacket) {
+        if($initPacklen === static::CLIENT_MAX_PACKET_SIZE) {
             $length = \Plasma\BinaryBuffer::writeInt3(0);
             $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
             $packet = $length.$sequence;
@@ -348,7 +341,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         $length = $buffer->readInt3();
         $this->sequenceID = $buffer->readInt1();
         
-        if($length === $this->maxAllowedPacket) {
+        if($length === static::CLIENT_MAX_PACKET_SIZE) {
             $this->buffer->read(($length + 4));
             $this->messageBuffer->append($buffer->read($length));
             return;
