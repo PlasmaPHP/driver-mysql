@@ -102,6 +102,22 @@ class DriverTest extends TestCase {
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
+    function testConnectUnix() {
+        if(\DIRECTORY_SEPARATOR === '\\') {
+            return $this->markTestSkipped('Not supported on windows');
+        }
+        
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, '/var/run/mysqld/mysqld.sock/', 'unix');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+    }
+    
     function testConnectInvalidCredentials() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);

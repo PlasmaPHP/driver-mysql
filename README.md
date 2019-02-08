@@ -34,10 +34,12 @@ $client = \Plasma\Client::create($factory, 'user:password@localhost:3306/databas
 $loop->run();
 ```
 
-Unix socket connections are supported using the `unix://` scheme, so the example connect uri would look like this:
+Unix socket connections are supported using the `unix://` scheme, so the example connect uri would look like this.
 ```
 unix://user:password@localhost/database
 ```
+
+When using unix socket connections without a database, a trailing slash is required. When using `localhost` as unix socket path, the default mysql path will be used.
 
 # Type Extensions
 This driver uses a type extensions manager registered under the name `driver-mysql`.

@@ -166,13 +166,37 @@ class Driver implements \Plasma\DriverInterface {
             return $this->connectPromise;
         }
         
-        if(\strpos($uri, '://') === false) {
+        $pos = \strpos($uri, '://');
+        $unix = false;
+        
+        if($pos === false) {
             $uri = 'tcp://'.$uri;
+        } elseif(\substr($uri, 0, $pos) === 'unix') {
+            $defaultSocket = '/tmp/mysql.sock';
+            
+            $apos = \strpos($uri, '@');
+            $spos = \strrpos($uri, '/');
+            
+            if($apos !== false) {
+                $socket = \substr($uri, ($apos + 1), $spos);
+                $uri = \substr($uri, 0, ($apos + 1)).'localhost'.\substr($uri, $spos);
+            } else {
+                $socket = \substr($uri, ($pos + 3), $spos);
+                $uri = 'unix://localhost'.\substr($uri, $spos);
+            }
+            
+            if($socket === 'localhost' || $socket === '127.0.0.1' || $socket === '::1') {
+                $socket = $defaultSocket;
+            }
         }
         
         $parts = \parse_url($uri);
         if(!isset($parts['scheme']) || !isset($parts['host']) || !\in_array($parts['scheme'], $this->allowedSchemes)) {
             return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));
+        }
+        
+        if(isset($socket)) {
+            $parts['host'] = $socket;
         }
         
         if($parts['scheme'] === 'mysql') {
