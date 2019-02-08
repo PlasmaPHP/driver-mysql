@@ -790,9 +790,9 @@ class Driver implements \Plasma\DriverInterface {
                     }
                 }
                 
-                $remote = \parse_url($this->connection->getRemoteAddress())['host'];
+                $remote = \parse_url($this->connection->getRemoteAddress());
                 
-                if($remote !== '127.0.0.1' || $this->options['tls.forceLocal']) {
+                if($remote['scheme'] !== 'unix' && ($remote['host'] !== '127.0.0.1' || $this->options['tls.forceLocal'])) {
                     if(($message->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL) !== 0) { // If SSL supported, connect through SSL
                         $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
                         
