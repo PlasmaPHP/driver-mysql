@@ -178,10 +178,10 @@ class Driver implements \Plasma\DriverInterface {
             $spos = \strrpos($uri, '/');
             
             if($apos !== false) {
-                $socket = \substr($uri, ($apos + 1), $spos);
+                $socket = \substr($uri, ($apos + 1), ($spos - ($apos + 1)));
                 $uri = \substr($uri, 0, ($apos + 1)).'localhost'.\substr($uri, $spos);
             } else {
-                $socket = \substr($uri, ($pos + 3), $spos);
+                $socket = \substr($uri, ($pos + 3), ($spos - ($pos + 3)));
                 $uri = 'unix://localhost'.\substr($uri, $spos);
             }
             
@@ -241,7 +241,7 @@ class Driver implements \Plasma\DriverInterface {
             
             $user = ($parts['user'] ?? 'root');
             $password = ($parts['pass'] ?? '');
-            $db = (!empty($parts['path']) ? \ltrim($parts['path'], '/') : '');
+            $db = \ltrim(($parts['path'] ?? ''), '/');
             
             $credentials = \compact('user', 'password', 'db');
             
