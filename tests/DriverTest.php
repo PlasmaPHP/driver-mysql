@@ -112,7 +112,7 @@ class DriverTest extends TestCase {
         
         $prom = $this->connect($driver, '/var/run/mysqld/mysqld.sock/', 'unix');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        $this->assertGreaterThanOrEqual(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
