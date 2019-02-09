@@ -148,6 +148,7 @@ class StatementTest extends TestCase {
                 'close',
                 'quit',
                 'runCommand',
+                'runQuery',
                 'query',
                 'prepare',
                 'execute',

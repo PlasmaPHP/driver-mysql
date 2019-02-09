@@ -431,6 +431,66 @@ class DriverTest extends TestCase {
         $this->assertSame(array(0, 1, 2), $resolval);
     }
     
+    function testRunQuery() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $client
+            ->expects($this->any())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $query = $this->getMockBuilder(\Plasma\SQLQuerybuilderInterface::class)
+            ->setMethods(array(
+                'create',
+                'getQuery',
+                'getParameters'
+            ))
+            ->getMock();
+        
+        $query
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue('SELECT 1'));
+        
+        $query
+            ->expects($this->once())
+            ->method('getParameters')
+            ->will($this->returnValue(array()));
+        
+        $prom = $driver->runQuery($client, $query);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $result = $this->await($prom);
+        $this->assertInstanceOf(\Plasma\QueryResultInterface::class, $result);
+    }
+    
+    function testRunQueryInvalidBuilder() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        $query = $this->getMockBuilder(\Plasma\QuerybuilderInterface::class)
+            ->setMethods(array(
+                'create',
+                'getQuery',
+                'getParameters'
+            ))
+            ->getMock();
+        
+        $this->expectException(\Plasma\Exception::class);
+        $driver->runQuery($client, $query);
+    }
+    
     function testQuery() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -921,6 +981,31 @@ class DriverTest extends TestCase {
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($command, 0.1);
+    }
+    
+    function testGoingAwayRunQuery() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->assertNull($driver->quit());
+        
+        $client = $this->createClientMock();
+        
+        $query = $this->getMockBuilder(\Plasma\QuerybuilderInterface::class)
+            ->setMethods(array(
+                'create',
+                'getQuery',
+                'getParameters'
+            ))
+            ->getMock();
+        
+        $prom = $driver->runQuery($client, $query);
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        
+        $this->expectException(\Plasma\Exception::class);
+        $this->expectExceptionMessage('Connection is going away');
+        
+        $this->await($prom, 0.1);
     }
     
     function testUnconnectedQuery() {
@@ -2122,6 +2207,7 @@ class DriverTest extends TestCase {
                 'close',
                 'quit',
                 'runCommand',
+                'runQuery',
                 'query',
                 'prepare',
                 'execute',

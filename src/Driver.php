@@ -666,6 +666,30 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Runs the given SQL querybuilder.
+     * The driver CAN throw an exception if the given querybuilder is not supported.
+     * An example would be a SQL querybuilder and a Cassandra driver.
+     * @param \Plasma\ClientInterface           $client
+     * @param \Plasma\SQLQuerybuilderInterface  $query
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     */
+    function runQuery(\Plasma\ClientInterface $client, \Plasma\QuerybuilderInterface $query): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        }
+        
+        if(!($query instanceof \Plasma\SQLQuerybuilderInterface)) {
+            throw new \Plasma\Exception('Given querybuilder must be a SQL querybuilder');
+        }
+        
+        $sql = $query->getQuery();
+        $params = $query->getParameters();
+        
+        return $this->execute($client, $sql, $params);
+    }
+    
+    /**
      * Executes a command.
      * @param \Plasma\CommandInterface  $command
      * @return void
