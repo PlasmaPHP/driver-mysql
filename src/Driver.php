@@ -309,6 +309,17 @@ class Driver implements \Plasma\DriverInterface {
             return $this->goingAway->promise();
         }
         
+        if($this->connectionState < \Plasma\DriverInterface::CONNECTION_OK) {
+            $this->goingAway = new \React\Promise\Deferred();
+            
+            if($this->connection !== null) {
+                $this->connection->close();
+            }
+            
+            $this->goingAway->resolve();
+            return $this->goingAway->promise();
+        }
+        
         $state = $this->connectionState;
         $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
         
@@ -346,14 +357,13 @@ class Driver implements \Plasma\DriverInterface {
      * @return void
      */
     function quit(): void {
-        if($this->goingAway) {
-            return;
+        if($this->goingAway === null) {
+            $this->goingAway = new \React\Promise\Deferred();
         }
         
         $state = $this->connectionState;
         $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
         
-        $this->goingAway = new \React\Promise\Deferred();
         $this->goingAway->resolve();
         
         /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
