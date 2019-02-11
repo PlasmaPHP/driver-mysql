@@ -207,7 +207,9 @@ class Driver implements \Plasma\DriverInterface {
         $this->connectionState = static::CONNECTION_STARTED;
         $resolved = false;
         
-        $this->connectPromise =  $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
+        $this->connectPromise = $this->connector->connect($host)->then(function (\React\Socket\ConnectionInterface $connection) use ($parts, &$resolved) {
+            $this->connectPromise = null;
+            
             // See description of property encryption
             if(!($connection instanceof \React\Socket\Connection)) {
                 throw new \LogicException('Custom connection class is NOT supported yet (encryption limitation)');
