@@ -309,28 +309,31 @@ class Driver implements \Plasma\DriverInterface {
             return $this->goingAway->promise();
         }
         
-        if($this->connectionState < \Plasma\DriverInterface::CONNECTION_OK) {
-            $this->goingAway = new \React\Promise\Deferred();
-            
-            if($this->connection !== null) {
-                $this->connection->close();
-            }
-            
-            $this->goingAway->resolve();
-            return $this->goingAway->promise();
-        }
-        
         $state = $this->connectionState;
         $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
         
+        // Connection is still pending
+        if($this->connectPromise !== null) {
+            $this->connectPromise->cancel();
+            
+            /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
+            while($command = \array_shift($this->queue)) {
+                $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
+            }
+        }
+        
         $this->goingAway = new \React\Promise\Deferred();
         
-        if(\count($this->queue) === 0) {
+        if(\count($this->queue) === 0 || $state < \Plasma\DriverInterface::CONNECTION_OK) {
+            $this->queue = array();
             $this->goingAway->resolve();
         }
         
         return $this->goingAway->promise()->then(function () use ($state) {
             if($state !== static::CONNECTION_OK) {
+                return;
+            } elseif(!$this->connection->isWritable()) {
+                $this->connection->close();
                 return;
             }
             
@@ -364,11 +367,13 @@ class Driver implements \Plasma\DriverInterface {
         $state = $this->connectionState;
         $this->connectionState = \Plasma\DriverInterface::CONNECTION_UNUSABLE;
         
-        $this->goingAway->resolve();
-        
         /** @var \Plasma\Drivers\MySQL\Commands\CommandInterface  $command */
         while($command = \array_shift($this->queue)) {
             $command->emit('error', array((new \Plasma\Exception('Connection is going away'))));
+        }
+        
+        if($this->connectPromise !== null) {
+            $this->connectPromise->cancel();
         }
         
         if($state === static::CONNECTION_OK) {
@@ -377,6 +382,8 @@ class Driver implements \Plasma\DriverInterface {
             
             $this->connection->close();
         }
+        
+        $this->goingAway->resolve();
     }
     
     /**
