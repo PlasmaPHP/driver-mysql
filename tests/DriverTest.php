@@ -222,6 +222,22 @@ class DriverTest extends TestCase {
         $this->await($prom, 30.0);
     }
     
+    function testDriverCloseDuringMakingConnection() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $driver->connect('mysql://localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $this->await($driver->close());
+        
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageRegExp('/Connection to .*? cancelled/i');
+        
+        $this->await($prom);
+    }
+    
     function testDriverQuitDuringMakingConnection() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -233,6 +249,8 @@ class DriverTest extends TestCase {
         $driver->quit();
         
         $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageRegExp('/Connection to .*? cancelled/i');
+        
         $this->await($prom);
     }
     
