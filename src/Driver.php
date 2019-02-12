@@ -156,6 +156,7 @@ class Driver implements \Plasma\DriverInterface {
      * Connects to the given URI.
      * @param string  $uri
      * @return \React\Promise\PromiseInterface
+     * @throws \InvalidArgumentException
      */
     function connect(string $uri): \React\Promise\PromiseInterface {
         if($this->goingAway || $this->connectionState === \Plasma\DriverInterface::CONNECTION_UNUSABLE) {
@@ -167,7 +168,6 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         $pos = \strpos($uri, '://');
-        $unix = false;
         
         if($pos === false) {
             $uri = 'tcp://'.$uri;
@@ -177,13 +177,12 @@ class Driver implements \Plasma\DriverInterface {
             $apos = \strpos($uri, '@');
             $spos = \strrpos($uri, '/');
             
-            if($apos !== false) {
-                $socket = \substr($uri, ($apos + 1), ($spos - ($apos + 1)));
-                $uri = \substr($uri, 0, ($apos + 1)).'localhost'.\substr($uri, $spos);
-            } else {
-                $socket = \substr($uri, ($pos + 3), ($spos - ($pos + 3)));
-                $uri = 'unix://localhost'.\substr($uri, $spos);
+            if($apos === false) {
+                throw new \InvalidArgumentException('Connecting without any username is not a valid operation');
             }
+            
+            $socket = \substr($uri, ($apos + 1), ($spos - ($apos + 1)));
+            $uri = \substr($uri, 0, ($apos + 1)).'localhost'.\substr($uri, $spos);
             
             if($socket === 'localhost' || $socket === '127.0.0.1' || $socket === '::1') {
                 $socket = $defaultSocket;
@@ -192,7 +191,7 @@ class Driver implements \Plasma\DriverInterface {
         
         $parts = \parse_url($uri);
         if(!isset($parts['scheme']) || !isset($parts['host']) || !\in_array($parts['scheme'], $this->allowedSchemes)) {
-            return \React\Promise\reject((new \InvalidArgumentException('Invalid connect uri given')));
+            throw new \InvalidArgumentException('Invalid connect uri given');
         }
         
         if(isset($socket)) {

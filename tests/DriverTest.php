@@ -118,6 +118,14 @@ class DriverTest extends TestCase {
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
+    function testConnectInvalidUnixHostWithoutUsername() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $driver->connect('unix://localhost');
+    }
+    
     function testConnectInvalidCredentials() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -136,22 +144,16 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $driver->connect('');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        
         $this->expectException(\InvalidArgumentException::class);
-        $this->await($prom);
+        $driver->connect('');
     }
     
     function testConnectInvalidScheme() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
-        $prom = $driver->connect('dns://localhost');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        
         $this->expectException(\InvalidArgumentException::class);
-        $this->await($prom);
+        $driver->connect('dns://localhost');
     }
     
     /**
@@ -218,6 +220,20 @@ class DriverTest extends TestCase {
         $this->expectExceptionMessage('TLS is not supported by the server');
         
         $this->await($prom, 30.0);
+    }
+    
+    function testDriverQuitDuringMakingConnection() {
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $driver->connect('mysql://localhost');
+        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        
+        $driver->quit();
+        
+        $this->expectException(\RuntimeException::class);
+        $this->await($prom);
     }
     
     function testPauseStreamConsumption() {
