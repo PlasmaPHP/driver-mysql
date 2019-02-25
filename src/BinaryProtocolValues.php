@@ -90,7 +90,7 @@ class BinaryProtocolValues {
             case static::isTypeInt24orLong($type):
                 $value = $buffer->readInt4();
                 
-                if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) !== 0 && \PHP_INT_SIZE <= 4) {
+                if($column->isUnsigned() && \PHP_INT_SIZE <= 4) {
                     $value = \bcadd($value, '18446744073709551616');
                 }
                 
@@ -99,7 +99,7 @@ class BinaryProtocolValues {
             case ($type === 'LONGLONG'):
                 $value = $buffer->readInt8();
                 
-                if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) !== 0) {
+                if($column->isUnsigned()) {
                     $value = \bcadd($value, '18446744073709551616');
                 } elseif(\PHP_INT_SIZE > 4) {
                     $value = (int) $value;
@@ -275,9 +275,7 @@ class BinaryProtocolValues {
      * @return string|int
      */
     static function zeroFillInts(\Plasma\ColumnDefinitionInterface $column, $value) {
-        $flags = $column->getFlags();
-        
-        if(($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) !== 0) {
+        if($column->isZerofilled()) {
             $value = \str_pad(((string) $value), $column->getLength(), '0', \STR_PAD_LEFT);
         }
         

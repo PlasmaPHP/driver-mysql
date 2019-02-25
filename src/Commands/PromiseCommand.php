@@ -217,9 +217,8 @@ abstract class PromiseCommand implements CommandInterface {
         
         $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? 'Unknown charset "'.$charset.'"';
         $type = \Plasma\Drivers\MySQL\FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
-        $nullable = (($flags & \Plasma\Drivers\MySQL\FieldFlags::NOT_NULL_FLAG) === 0);
         
-        return (new \Plasma\ColumnDefinition($database, $table, $name, $type, $charset, $length, $nullable, $flags, $decimals));
+        return (new \Plasma\Drivers\MySQL\ColumnDefinition($database, $table, $name, $type, $charset, $length, $flags, $decimals));
     }
     
     /**
