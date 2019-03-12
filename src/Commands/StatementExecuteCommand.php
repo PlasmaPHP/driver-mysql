@@ -84,7 +84,7 @@ class StatementExecuteCommand extends QueryCommand {
                     ->encodeType($param, $this->paramsDef[$id]);
                 
                 $unsigned = $encode->isUnsigned();
-                $type = $encode->getSQLType();
+                $type = $encode->getDatabaseType();
                 $value = $encode->getValue();
             } catch (\Plasma\Exception $e) {
                 [ $unsigned, $type, $value ] = \Plasma\Drivers\MySQL\BinaryProtocolValues::encode($param);
