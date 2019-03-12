@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="index, follow, all" />
+    <title>Plasma\Drivers\MySQL\FieldFlags | driver-mysql</title>
+
+            <link rel="stylesheet" type="text/css" href="../../../css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/bootstrap-theme.min.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/sami.css">
+        <link rel="stylesheet" type="text/css" href="../../../css/prism.css">
+        <script src="../../../js/jquery-1.11.1.min.js"></script>
+        <script src="../../../js/bootstrap.min.js"></script>
+        <script src="../../../js/typeahead.min.js"></script>
+        <script src="../../../sami.js"></script>
+        <script src="../../../js/prism.js"></script>
+        <meta name="MobileOptimized" content="width">
+        <meta name="HandheldFriendly" content="true">
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    
+    
+    </head>
+
+    <body id="class" data-name="class:Plasma_Drivers_MySQL_FieldFlags" data-root-path="../../../">
+            <div id="content">
+        <div id="left-column">
+                <div id="control-panel">
+                    <form action="#" method="GET">
+                <select id="version-switcher" name="version">
+                                            <option value="../../../../v0.1.0/index.html" data-version="v0.1.0">v0.1.0</option>
+                                            <option value="../../../../v0.1.1/index.html" data-version="v0.1.1">v0.1.1</option>
+                                            <option value="../../../../v0.2.0/index.html" data-version="v0.2.0">v0.2.0</option>
+                                            <option value="../../../../master/index.html" data-version="master">master</option>
+                                    </select>
+            </form>
+                <script>
+            $('option[data-version="'+window.projectVersion+'"]').prop('selected', true);
+        </script>
+        <form id="search-form" action="../../../search.html" method="GET">
+            <span class="glyphicon glyphicon-search"></span>
+            <input name="search"
+                   class="typeahead form-control"
+                   type="search"
+                   placeholder="Search">
+        </form>
+    </div>
+
+                <div id="api-tree"></div>
+
+        </div>
+        <div id="right-column">
+                <nav id="site-nav" class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-elements">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="../../../index.html">driver-mysql</a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar-elements">
+                <ul class="nav navbar-nav">
+                    <li><a href="../../../classes.html">Classes</a></li>
+                                                                <li><a href="../../../namespaces.html">Namespaces</a></li>
+                                        <li><a href="../../../interfaces.html">Interfaces</a></li>
+                    <li><a href="../../../traits.html">Traits</a></li>
+                    <li><a href="../../../doc-index.html">Index</a></li>
+                    <li><a href="../../../search.html">Search</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+                        <div class="namespace-breadcrumbs">
+            <ol class="breadcrumb">
+                <li><span class="label label-default">class</span></li>
+                        <li><a href="../../../Plasma.html">Plasma</a></li><li class="backslash">\</li><li><a href="../../../Plasma/Drivers.html">Drivers</a></li><li class="backslash">\</li><li><a href="../../../Plasma/Drivers/MySQL.html">MySQL</a></li><li class="backslash">\</li><li>FieldFlags</li>
+            </ol>
+        </div>
+                <div id="page-content">
+                
+    <div class="page-header">
+        <h1>
+            FieldFlags
+                
+        </h1>
+    </div>
+
+    <p>    class
+    <strong>FieldFlags</strong>        (<a href="https://github.com/PlasmaPHP/driver-mysql/blob/v0.2.0/src/FieldFlags.php" target="_blank">View source</a>)
+</p>
+
+        
+    
+
+            <div class="description">
+            <p>The MySQL Field Flags.</p>                                </div>
+    
+    
+            <h2>Constants</h2>
+
+            <table class="table table-condensed">
+                    <tr>
+                <td>AUTO_INCREMENT_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column automatically increments.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const AUTO_INCREMENT_FLAG = 0x200;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>BINARY_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is binary.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const BINARY_FLAG = 0x80;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>BLOB_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is a blob. Still not the google ones.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const BLOB_FLAG = 0x10;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>ENUM_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is an enum.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const ENUM_FLAG = 0x100;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_BIT</td>
+                <td class="last">
+                    <p><em>Bit.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_BIT = 0x10;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_BLOB</td>
+                <td class="last">
+                    <p><em>Blob. Not the google ones. Binary.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_BLOB = 0xFC;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_DATE</td>
+                <td class="last">
+                    <p><em>Date.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_DATE = 0x0A;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_DATETIME</td>
+                <td class="last">
+                    <p><em>Datetime.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_DATETIME = 0x0C;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_DECIMAL</td>
+                <td class="last">
+                    <p><em>Decimal.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_DECIMAL = 0x00;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_DOUBLE</td>
+                <td class="last">
+                    <p><em>Double. 8 bytes.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_DOUBLE = 0x05;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_ENUM</td>
+                <td class="last">
+                    <p><em>Enum.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_ENUM = 0xF7;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_FLOAT</td>
+                <td class="last">
+                    <p><em>Float. 4 bytes.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_FLOAT = 0x04;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_GEOMETRY</td>
+                <td class="last">
+                    <p><em>Geometry. You know, some sort of witchcraft.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_GEOMETRY = 0xFF;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_INT24</td>
+                <td class="last">
+                    <p><em>Integer. 24 bits.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_INT24 = 0x09;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_JSON</td>
+                <td class="last">
+                    <p><em>JSON.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_JSON = 0xF5;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_LONG</td>
+                <td class="last">
+                    <p><em>Integer. 4 bytes.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_LONG = 0x03;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_LONGLONG</td>
+                <td class="last">
+                    <p><em>Integer. 8 bytes.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_LONGLONG = 0x08;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_LONG_BLOB</td>
+                <td class="last">
+                    <p><em>Long blob. Binary.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_LONG_BLOB = 0xFB;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_MEDIUM_BLOB</td>
+                <td class="last">
+                    <p><em>Medium blob. Binary.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_MEDIUM_BLOB = 0xFA;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_NEWDATE</td>
+                <td class="last">
+                    <p><em>New date.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_NEWDATE = 0x0E;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_NEWDECIMAL</td>
+                <td class="last">
+                    <p><em>Newdecimal.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_NEWDECIMAL = 0xF6;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_NULL</td>
+                <td class="last">
+                    <p><em>Null.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_NULL = 0x06;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_SET</td>
+                <td class="last">
+                    <p><em>Set.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_SET = 0xF8;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_SHORT</td>
+                <td class="last">
+                    <p><em>Short int. 2 bytes.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_SHORT = 0x02;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_STRING</td>
+                <td class="last">
+                    <p><em>String.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_STRING = 0xFE;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_TIME</td>
+                <td class="last">
+                    <p><em>Time.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_TIME = 0x0B;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_TIMESTAMP</td>
+                <td class="last">
+                    <p><em>Timestamp.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_TIMESTAMP = 0x07;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_TINY</td>
+                <td class="last">
+                    <p><em>Tiny int. 1 byte.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_TINY = 0x01;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_TINY_BLOB</td>
+                <td class="last">
+                    <p><em>Tiny blob. Binary.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_TINY_BLOB = 0xF9;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_VARCHAR</td>
+                <td class="last">
+                    <p><em>Varchar.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_VARCHAR = 0x0F;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_VAR_STRING</td>
+                <td class="last">
+                    <p><em>Variable string.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_VAR_STRING = 0xFD;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>FIELD_TYPE_YEAR</td>
+                <td class="last">
+                    <p><em>Year.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const FIELD_TYPE_YEAR = 0x0D;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>MULTIPLE_KEY_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is part of a key.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const MULTIPLE_KEY_FLAG = 0x8;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>NOT_NULL_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column can not be <code>NULL</code>.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const NOT_NULL_FLAG = 0x1;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>PRI_KEY_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is a primary key.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const PRI_KEY_FLAG = 0x2;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>SET_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is a set.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const SET_FLAG = 0x800;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>TIMESTAMP_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is a timestamp.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const TIMESTAMP_FLAG = 0x400;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>TYPE_MAP</td>
+                <td class="last">
+                    <p><em>Maps the int to the type name.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const TYPE_MAP = array(
+    FieldFlags::FIELD_TYPE_DECIMAL =&gt; &#039;DECIMAL&#039;,
+    FieldFlags::FIELD_TYPE_TINY =&gt; &#039;TINY&#039;,
+    FieldFlags::FIELD_TYPE_SHORT =&gt; &#039;SHORT&#039;,
+    FieldFlags::FIELD_TYPE_LONG =&gt; &#039;LONG&#039;,
+    FieldFlags::FIELD_TYPE_FLOAT =&gt; &#039;FLOAT&#039;,
+    FieldFlags::FIELD_TYPE_DOUBLE =&gt; &#039;DOUBLE&#039;,
+    FieldFlags::FIELD_TYPE_NULL =&gt; &#039;NULL&#039;,
+    FieldFlags::FIELD_TYPE_TIMESTAMP =&gt; &#039;TIMESTAMP&#039;,
+    FieldFlags::FIELD_TYPE_LONGLONG =&gt; &#039;LONGLONG&#039;,
+    FieldFlags::FIELD_TYPE_INT24 =&gt; &#039;INT24&#039;,
+    FieldFlags::FIELD_TYPE_DATE =&gt; &#039;DATE&#039;,
+    FieldFlags::FIELD_TYPE_TIME =&gt; &#039;TIME&#039;,
+    FieldFlags::FIELD_TYPE_DATETIME =&gt; &#039;DATETIME&#039;,
+    FieldFlags::FIELD_TYPE_YEAR =&gt; &#039;YEAR&#039;,
+    FieldFlags::FIELD_TYPE_NEWDATE =&gt; &#039;NEWDATE&#039;,
+    FieldFlags::FIELD_TYPE_VARCHAR =&gt; &#039;VARCHAR&#039;,
+    FieldFlags::FIELD_TYPE_BIT =&gt; &#039;BIT&#039;,
+    FieldFlags::FIELD_TYPE_JSON =&gt; &#039;JSON&#039;,
+    FieldFlags::FIELD_TYPE_NEWDECIMAL =&gt; &#039;NEWDECIMAL&#039;,
+    FieldFlags::FIELD_TYPE_ENUM =&gt; &#039;ENUM&#039;,
+    FieldFlags::FIELD_TYPE_SET =&gt; &#039;SET&#039;,
+    FieldFlags::FIELD_TYPE_TINY_BLOB =&gt; &#039;TINYBLOB&#039;,
+    FieldFlags::FIELD_TYPE_MEDIUM_BLOB =&gt; &#039;MEDIUMBLOB&#039;,
+    FieldFlags::FIELD_TYPE_LONG_BLOB =&gt; &#039;LONGBLOB&#039;,
+    FieldFlags::FIELD_TYPE_BLOB =&gt; &#039;BLOB&#039;,
+    FieldFlags::FIELD_TYPE_VAR_STRING =&gt; &#039;VARSTRING&#039;,
+    FieldFlags::FIELD_TYPE_STRING =&gt; &#039;STRING&#039;,
+    FieldFlags::FIELD_TYPE_GEOMETRY =&gt; &#039;GEOMETRY&#039;
+);</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>UNIQUE_KEY_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column must be unique.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const UNIQUE_KEY_FLAG = 0x4;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>UNSIGNED_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column is unsigned.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const UNSIGNED_FLAG = 0x20;</code></pre>
+                                    </td>
+            </tr>
+                    <tr>
+                <td>ZEROFILL_FLAG</td>
+                <td class="last">
+                    <p><em>Whether the column will be filled with zeroes to the column length.</em></p>
+                    <p></p>
+                                            <pre><code class="language-php">const ZEROFILL_FLAG = 0x40;</code></pre>
+                                    </td>
+            </tr>
+            </table>
+
+    
+    
+    
+            </div>
+                <div id="footer">
+        Generated by <a href="http://sami.sensiolabs.org/">Sami, the API Documentation Generator</a>.
+    </div>
+
+        </div>
+    </div>
+    </body>
+
+</html>
