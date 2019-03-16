@@ -601,7 +601,7 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \Plasma\Exception
      * @see \Plasma\TransactionInterface
      */
-    function beginTransaction(\Plasma\ClientInterface $client, int $isolation = \Plasma\TransactionInterface::ISOLATION_COMMITTED): \React\Promise\PromiseInterface {
+    function beginTransaction(\Plasma\ClientInterface $client, $isolation = \Plasma\TransactionInterface::ISOLATION_NO_CHANGE): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
@@ -611,7 +611,7 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         switch ($isolation) {
-            case \Plasma\TransactionInterface::$isolation = \Plasma\TransactionInterface::ISOLATION_NO_CHANGE:
+            case \Plasma\TransactionInterface::ISOLATION_NO_CHANGE:
                 return $this->query($client, 'START TRANSACTION')->then(function () use (&$client, $isolation) {
                     return (new \Plasma\Transaction($client, $this, $isolation));
                 })->then(null, function (\Throwable $e) {
