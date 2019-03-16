@@ -195,6 +195,16 @@
                                             <p>Whether the statement has been closed.</p>                </div>
                 <div class="col-md-2"></div>
             </div>
+                    <div class="row">
+                <div class="col-md-2 type">
+                    <abbr title="React\Promise\PromiseInterface">PromiseInterface</abbr>
+                </div>
+                <div class="col-md-8 type">
+                    <a href="#method_runQuery">runQuery</a>(<abbr title="Plasma\QueryBuilderInterface">QueryBuilderInterface</abbr> $query)
+        
+                                            <p>Runs the given querybuilder on the underlying driver instance. However the query will be ignored, only the parameters are used.</p>                </div>
+                <div class="col-md-2"></div>
+            </div>
             </div>
 
 
@@ -398,7 +408,7 @@ ALWAYS explicitely close the statement once you're done.</p>                    
             </div>
                     <div class="method-item">
                     <h3 id="method_getColumns">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/Statement.php#L179">line 179</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/Statement.php#L191">line 191</a></div>
         <code>                    array
     <strong>getColumns</strong>()
         </code>
@@ -462,7 +472,7 @@ ALWAYS explicitely close the statement once you're done.</p>                    
             </div>
                     <div class="method-item">
                     <h3 id="method_getParams">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/Statement.php#L171">line 171</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/Statement.php#L183">line 183</a></div>
         <code>                    array
     <strong>getParams</strong>()
         </code>
@@ -549,6 +559,58 @@ ALWAYS explicitely close the statement once you're done.</p>                    
     </table>
 
             
+            
+                        
+                        
+                    </div>
+    </div>
+
+            </div>
+                    <div class="method-item">
+                    <h3 id="method_runQuery">
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/Statement.php#L175">line 175</a></div>
+        <code>                    <abbr title="React\Promise\PromiseInterface">PromiseInterface</abbr>
+    <strong>runQuery</strong>(<abbr title="Plasma\QueryBuilderInterface">QueryBuilderInterface</abbr> $query)
+        </code>
+    </h3>
+    <div class="details">
+            
+    
+
+                    <div class="method-description">
+                                    <p>Runs the given querybuilder on the underlying driver instance. However the query will be ignored, only the parameters are used.</p>                    <p>The driver CAN throw an exception if the given querybuilder is not supported.
+An example would be a SQL querybuilder and a Cassandra driver.</p>                            </div>
+                <div class="tags">
+                            <h4>Parameters</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td><abbr title="Plasma\QueryBuilderInterface">QueryBuilderInterface</abbr></td>
+                <td>$query</td>
+                <td></td>
+            </tr>
+            </table>
+
+            
+                            <h4>Return Value</h4>
+
+                    <table class="table table-condensed">
+        <tr>
+            <td><abbr title="React\Promise\PromiseInterface">PromiseInterface</abbr></td>
+            <td></td>
+        </tr>
+    </table>
+
+            
+                            <h4>Exceptions</h4>
+
+                    <table class="table table-condensed">
+                    <tr>
+                <td><abbr title="Plasma\Exception">Exception</abbr></td>
+                <td></td>
+            </tr>
+            </table>
+
             
                         
                         
