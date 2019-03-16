@@ -611,6 +611,14 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         switch ($isolation) {
+            case \Plasma\TransactionInterface::$isolation = \Plasma\TransactionInterface::ISOLATION_NO_CHANGE:
+                return $this->query($client, 'START TRANSACTION')->then(function () use (&$client, $isolation) {
+                    return (new \Plasma\Transaction($client, $this, $isolation));
+                })->then(null, function (\Throwable $e) {
+                    $this->transaction = false;
+                    throw $e;
+                });
+            break;
             case \Plasma\TransactionInterface::ISOLATION_UNCOMMITTED:
                 $query = 'SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED';
             break;

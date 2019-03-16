@@ -165,6 +165,18 @@ class Statement implements \Plasma\StatementInterface {
     }
     
     /**
+     * Runs the given querybuilder on the underlying driver instance. However the query will be ignored, only the parameters are used.
+     * The driver CAN throw an exception if the given querybuilder is not supported.
+     * An example would be a SQL querybuilder and a Cassandra driver.
+     * @param \Plasma\QueryBuilderInterface  $query
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     */
+    function runQuery(\Plasma\QueryBuilderInterface $query): \React\Promise\PromiseInterface {
+        return $this->execute($query->getParameters());
+    }
+    
+    /**
      * Get the parsed parameters.
      * @return \Plasma\ColumnDefinitionInterface[]
      */

@@ -1836,7 +1836,7 @@ class DriverTest extends TestCase {
         ), $data);
     }
     
-    /* JSON is supported since roughly MySQL 8.0
+    /* JSON is supported since MySQL 5.7.8
     function testBinaryTypeNewJSON() {
         $data = $this->insertIntoTestString(18, '{"hello":true}');
         
