@@ -479,7 +479,7 @@ class DriverTest extends TestCase {
             ->method('checkinConnection')
             ->with($driver);
         
-        $query = $this->getMockBuilder(\Plasma\SQLQuerybuilderInterface::class)
+        $query = $this->getMockBuilder(\Plasma\SQLQueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
@@ -513,7 +513,7 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
-        $query = $this->getMockBuilder(\Plasma\QuerybuilderInterface::class)
+        $query = $this->getMockBuilder(\Plasma\QueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
@@ -1025,7 +1025,7 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
-        $query = $this->getMockBuilder(\Plasma\QuerybuilderInterface::class)
+        $query = $this->getMockBuilder(\Plasma\QueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
