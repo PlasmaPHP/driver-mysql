@@ -28,6 +28,7 @@ class Driver implements \Plasma\DriverInterface {
         'characters.set' => 'utf8mb4',
         'characters.collate' => null,
         'compression.enable' => !true,
+        'localInFile.enable' => false,
         'tls.context' => array(),
         'tls.force' => true,
         'tls.forceLocal' => false
@@ -779,6 +780,15 @@ class Driver implements \Plasma\DriverInterface {
         }
         
         return $command;
+    }
+    
+    /**
+     * Get the driver options.
+     * @return array
+     * @internal
+     */
+    function getOptions(): array {
+        return $this->options;
     }
     
     /**

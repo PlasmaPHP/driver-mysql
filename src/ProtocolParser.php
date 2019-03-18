@@ -398,8 +398,32 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
                     $this->lastOkMessage = $message;
                 break;
+                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID()):
+                    $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($this);
+                break;
+                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage::getID()):
+                    $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
+                break;
+                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID()):
+                    $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($this);
+                break;
                 case ($firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() && $length < 6):
                     $message = new \Plasma\Drivers\MySQL\Messages\EOFMessage($this);
+                break;
+                case ($firstChar === \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage::getID()):
+                    if($this->driver->getOptions()['localInFile.enable']) {
+                        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($this);
+                    } else {
+                        $this->emit('error', array((new \Plasma\Exception('MySQL server requested a local file, but the driver options is disabled'))));
+                        
+                        if($this->buffer->getSize() > 0) {
+                            $this->driver->getLoop()->futureTick(function () {
+                                $this->processBuffer();
+                            });
+                        }
+                        
+                        return;
+                    }
                 break;
                 default:
                     $buffer->prepend($firstChar);
