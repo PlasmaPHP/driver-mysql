@@ -173,7 +173,7 @@
             <div id="method-details">
                     <div class="method-item">
                     <h3 id="method___construct">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L58">line 58</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L59">line 59</a></div>
         <code>                    
     <strong>__construct</strong>(<abbr title="React\EventLoop\LoopInterface">LoopInterface</abbr> $loop, array $options)
         </code>
@@ -190,6 +190,7 @@
     'characters.set' =&gt; string, (the character set to use, defaults to utf8mb4)
     'characters.collate' =&gt; string, (the collate to use, defaults to the charset default)
     'compression.enable' =&gt; bool, (whether compression should be used if available, defaults to true)
+    'localInFile.enable' =&gt; bool, (whether local in file requests are enabled, defaults to false, see issue #16)
     'tls.context' =&gt; array, (socket TLS context options)
     'tls.force' =&gt; bool, (whether non-localhost connections are forced to use TLS, defaults to true)
     'tls.forceLocal' =&gt; bool, (whether localhost connections are forced to use TLS, defaults to false)
@@ -223,7 +224,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_addAuthPlugin">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L88">line 88</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L89">line 89</a></div>
         <code>        static            void
     <strong>addAuthPlugin</strong>(string|int $condition, string $classname)
         </code>
@@ -279,7 +280,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_createDriver">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L77">line 77</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L78">line 78</a></div>
         <code>                    <abbr title="Plasma\DriverInterface">DriverInterface</abbr>
     <strong>createDriver</strong>()
         </code>
@@ -311,7 +312,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_getAuthPlugins">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L104">line 104</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L105">line 105</a></div>
         <code>        static            array
     <strong>getAuthPlugins</strong>()
         </code>
@@ -343,7 +344,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_getFilesystem">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L121">line 121</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L122">line 122</a></div>
         <code>        static            <abbr title="Plasma\Drivers\MySQL\React\Filesystem\FilesystemInterface">FilesystemInterface</abbr>|null
     <strong>getFilesystem</strong>()
         </code>
@@ -375,7 +376,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_setFilesystem">
-        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L113">line 113</a></div>
+        <div class="location">at         <a href="https://github.com/PlasmaPHP/driver-mysql/blob/master/src/DriverFactory.php#L114">line 114</a></div>
         <code>        static            void
     <strong>setFilesystem</strong>(<abbr title="React\Filesystem\FilesystemInterface">FilesystemInterface</abbr>|null $filesystem)
         </code>
