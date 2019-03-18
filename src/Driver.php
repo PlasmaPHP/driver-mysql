@@ -601,7 +601,7 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \Plasma\Exception
      * @see \Plasma\TransactionInterface
      */
-    function beginTransaction(\Plasma\ClientInterface $client, int $isolation = \Plasma\TransactionInterface::ISOLATION_NO_CHANGE): \React\Promise\PromiseInterface {
+    function beginTransaction(\Plasma\ClientInterface $client, int $isolation = \Plasma\TransactionInterface::ISOLATION_COMMITTED): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         }
@@ -609,6 +609,8 @@ class Driver implements \Plasma\DriverInterface {
         if($this->transaction) {
             throw new \Plasma\Exception('Driver is already in transaction');
         }
+        
+        $this->transaction = true;
         
         switch ($isolation) {
             case \Plasma\TransactionInterface::ISOLATION_NO_CHANGE:
@@ -620,28 +622,26 @@ class Driver implements \Plasma\DriverInterface {
                 });
             break;
             case \Plasma\TransactionInterface::ISOLATION_UNCOMMITTED:
-                $query = 'SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED';
+                $query = 'SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED';
             break;
             case \Plasma\TransactionInterface::ISOLATION_COMMITTED:
-                $query = 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED';
+                $query = 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED';
             break;
             case \Plasma\TransactionInterface::ISOLATION_REPEATABLE:
-                $query = 'SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ';
+                $query = 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ';
             break;
             case \Plasma\TransactionInterface::ISOLATION_SERIALIZABLE:
-                $query = 'SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE';
+                $query = 'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE';
             break;
             default:
                 throw new \Plasma\Exception('Invalid isolation level given');
             break;
         }
         
-        $this->transaction = true;
-        
-        return $this->query($client, $query)->then(function () use (&$client) {
-            return $this->query($client, 'START TRANSACTION');
-        })->then(function () use (&$client, $isolation) {
-            return (new \Plasma\Transaction($client, $this, $isolation));
+        return $this->query($client, $query)->then(function () use (&$client, $isolation) {
+            return $this->query($client, 'START TRANSACTION')->then(function () use (&$client, $isolation) {
+                return (new \Plasma\Transaction($client, $this, $isolation));
+            });
         })->then(null, function (\Throwable $e) {
             $this->transaction = false;
             throw $e;
