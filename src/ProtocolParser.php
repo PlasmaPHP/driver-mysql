@@ -316,7 +316,15 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->compressionID = -1;
         }
         
-        $this->sendPacket($command->getEncodedMessage());
+        try {
+            $msg = $command->getEncodedMessage();
+        } catch (\Plasma\Exception $e) {
+            $this->currentCommand = null;
+            $command->onError($e);
+            return;
+        }
+        
+        $this->sendPacket($msg);
         
         if($command !== $this->currentCommand || !$command->waitForCompletion()) {
             $command->onComplete();
