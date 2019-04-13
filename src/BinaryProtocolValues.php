@@ -132,7 +132,7 @@ class BinaryProtocolValues {
                 $value = static::parseTime($buffer);
             break;
             default:
-                throw new \InvalidArgumentException('Unknown column type (flags: '.$flags.', type: '.$type.')');
+                throw new \Plasma\Exception('Unknown column type (flags: '.$flags.', type: '.$type.')');
             break;
         }
         

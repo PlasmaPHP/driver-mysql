@@ -542,6 +542,15 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             
             $this->emit('error', array($e));
             $this->connection->close();
+        } catch (\Plasma\Exception $e) {
+            if($this->currentCommand !== null) {
+                $command = $this->currentCommand;
+                $this->currentCommand = null;
+                
+                $command->onError($error);
+            } else {
+                $this->emit('error', array($e));
+            }
         }
         
         if($this->buffer->getSize() > 0) {
