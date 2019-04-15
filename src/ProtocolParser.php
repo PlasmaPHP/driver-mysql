@@ -547,7 +547,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 $command = $this->currentCommand;
                 $this->currentCommand = null;
                 
-                $command->onError($error);
+                $command->onError($e);
             } else {
                 $this->emit('error', array($e));
             }
