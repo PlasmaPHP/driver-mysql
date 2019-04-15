@@ -177,6 +177,30 @@ class Statement implements \Plasma\StatementInterface {
     }
     
     /**
+     * Creates a cursor.
+     * @param array  $params
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception  Thrown if the statement is executed after it has been closed, or if it's not a SELECT query, or for insufficent or missing parameters.
+     * @internal
+     */
+    function createCursor(array $params = array()): \React\Promise\PromiseInterface {
+        if($this->closed) {
+            throw new \Plasma\Exception('Statement has been closed');
+        } elseif(empty($this->columns)) {
+            throw new \Plasma\Exception('Query is not a SELECT query');
+        }
+        
+        $params = \Plasma\Utility::replaceParameters($this->rewrittenParams, $params);
+        
+        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $params, $this->params, 0x04);
+        $this->driver->executeCommand($execute);
+        
+        return $execute->getPromise()->then(function () {
+            return (new \Plasma\Drivers\MySQL\StatementCursor($this->driver, $this));
+        });
+    }
+    
+    /**
      * Get the parsed parameters.
      * @return \Plasma\ColumnDefinitionInterface[]
      */

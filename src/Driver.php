@@ -717,6 +717,24 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Creates a new cursor to seek through SELECT query results.
+     * @param \Plasma\ClientInterface  $client
+     * @param string                   $query
+     * @param array                    $params
+     * @return \React\Promise\PromiseInterface
+     * @throws \Plasma\Exception
+     */
+    function createCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        }
+        
+        return $this->prepare($client, $query)->then(function (\Plasma\Drivers\MySQL\Statement $statement) use ($params) {
+            return $statement->createCursor($params);
+        });
+    }
+    
+    /**
      * Executes a command.
      * @param \Plasma\CommandInterface  $command
      * @return void

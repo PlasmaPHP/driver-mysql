@@ -37,19 +37,26 @@ class StatementExecuteCommand extends QueryCommand {
     protected $paramsDef;
     
     /**
+     * @var int
+     */
+    protected $cursor;
+    
+    /**
      * Constructor.
      * @param \Plasma\DriverInterface              $driver
      * @param mixed                                $id
      * @param string                               $query
      * @param array                                $params
      * @param \Plasma\ColumnDefinitionInterface[]  $paramsDef
+     * @param int                                  $cursor
      */
-    function __construct(\Plasma\DriverInterface $driver, $id, string $query, array $params, array $paramsDef) {
+    function __construct(\Plasma\DriverInterface $driver, $id, string $query, array $params, array $paramsDef, int $cursor = 0) {
         parent::__construct($driver, $query);
         
         $this->id = $id;
         $this->params = $params;
         $this->paramsDef = $paramsDef;
+        $this->cursor = $cursor;
     }
     
     /**
@@ -60,7 +67,7 @@ class StatementExecuteCommand extends QueryCommand {
         $packet = \chr(static::COMMAND_ID);
         $packet .= \Plasma\BinaryBuffer::writeInt4($this->id);
         
-        $packet .= "\x00"; // Cursor type flag
+        $packet .= \chr($this->cursor);
         $packet .= \Plasma\BinaryBuffer::writeInt4(1); // Iteration count is always 1
         
         $bitmapOffset = \strlen($packet);
@@ -110,6 +117,24 @@ class StatementExecuteCommand extends QueryCommand {
      */
     function resetSequence(): bool {
         return true;
+    }
+    
+    /**
+     * Sends the next received value into the command.
+     * @param mixed  $value
+     * @return void
+     * @throws \Plasma\Exception
+     */
+    function onNext($value): void {
+        if(
+            $this->cursor > 0 &&
+            ($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) &&
+            ($value->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0
+        ) {
+            throw new \Plasma\Exception('Requested a cursor, but did not receive one');
+        }
+        
+        parent::onNext($value);
     }
     
     /**
