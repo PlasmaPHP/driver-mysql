@@ -129,7 +129,7 @@ class StatementExecuteCommand extends QueryCommand {
         if($this->cursor > 0) {
             if(!($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage)) {
                 throw new \Plasma\Exception('Requested a cursor, but received row instead');
-            } elseif($value->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0) {
+            } elseif(($value->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0) {
                 throw new \Plasma\Exception('Requested a cursor, but did not receive one');
             }
         }
