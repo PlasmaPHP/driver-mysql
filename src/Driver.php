@@ -728,24 +728,12 @@ class Driver implements \Plasma\DriverInterface {
     function createCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
-        } elseif(
-            $this->getHandshake() !== null &&
-            (
-                ($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
-                \version_compare($this->getHandshake()->serverVersion, '5.7', '<')
-            )
-        ) {
+        } elseif(!$this->supportsCursors()) {
             throw new \LogicException('Used DBMS version does not support cursors');
         }
         
         return $this->prepare($client, $query)->then(function (\Plasma\Drivers\MySQL\Statement $statement) use ($params) {
-            if(
-                $this->getHandshake() !== null &&
-                (
-                    ($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
-                    \version_compare($this->getHandshake()->serverVersion, '5.7', '<')
-                )
-            ) {
+            if(!$this->supportsCursors()) {
                 $statement->close()->then(null, function () {
                     $this->close();
                 });
@@ -830,6 +818,29 @@ class Driver implements \Plasma\DriverInterface {
      */
     function getOptions(): array {
         return $this->options;
+    }
+    
+    /**
+     * Whether the DBMS supports cursors.
+     * @return bool
+     * @internal
+     */
+    function supportsCursors(): bool {
+        if($this->getHandshake() === null) {
+            return true; // Let's be optimistic
+        }
+        
+        $version = $this->getHandshake()->serverVersion;
+        $mariaDB = (\stripos($version, 'MariaDB') !== false);
+        $version = \explode('-', $version)[($mariaDB ? 1 : 0)];
+        
+        return (
+            (($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) > 0) &&
+            (
+                ($mariaDB && \version_compare($version, '10.3', '>=')) ||
+                (!$mariaDB && \version_compare($version, '5.7', '>='))
+            )
+        );
     }
     
     /**

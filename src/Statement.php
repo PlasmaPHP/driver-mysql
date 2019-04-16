@@ -188,13 +188,7 @@ class Statement implements \Plasma\StatementInterface {
             throw new \Plasma\Exception('Statement has been closed');
         } elseif(empty($this->columns)) {
             throw new \Plasma\Exception('Query is not a SELECT query');
-        } elseif(
-            $this->driver->getHandshake() !== null &&
-            (
-                ($this->driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
-                \version_compare($this->driver->getHandshake()->serverVersion, '5.7', '<')
-            )
-        ) {
+        } elseif(!$this->driver->supportsCursors()) {
             throw new \LogicException('Used DBMS version does not support cursors');
         }
         
