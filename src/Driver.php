@@ -97,6 +97,11 @@ class Driver implements \Plasma\DriverInterface {
     protected $charset;
     
     /**
+     * @var bool|null
+     */
+    protected $cursorSupported;
+    
+    /**
      * Constructor.
      * @param \React\EventLoop\LoopInterface  $loop
      * @param array                           $options
@@ -828,19 +833,23 @@ class Driver implements \Plasma\DriverInterface {
     function supportsCursors(): bool {
         if($this->getHandshake() === null) {
             return true; // Let's be optimistic
+        } elseif($this->cursorSupported !== null) {
+            return $this->cursorSupported;
         }
         
         $version = $this->getHandshake()->serverVersion;
-        $mariaDB = (\stripos($version, 'MariaDB') !== false);
-        $version = \explode('-', $version)[($mariaDB ? 1 : 0)];
-        
-        return (
+        $mariaDB = (int) (\stripos($version, 'MariaDB') !== false);
+        $version = \explode('-', $version)[$mariaDB];
+    
+        $this->cursorSupported = (
             (($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) > 0) &&
             (
                 ($mariaDB && \version_compare($version, '10.3', '>=')) ||
                 (!$mariaDB && \version_compare($version, '5.7', '>='))
             )
         );
+        
+        return $this->cursorSupported;
     }
     
     /**
