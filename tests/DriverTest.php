@@ -1370,6 +1370,55 @@ class DriverTest extends TestCase {
         $this->await($prep);
     }
     
+    function testCursor() {
+        /** @var \Plasma\Drivers\MySQL\Driver  $driver */
+        $driver = $this->factory->createDriver();
+        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        
+        $prom = $this->connect($driver, 'localhost/plasma_tmp');
+        $this->await($prom);
+        
+        $client = $this->createClientMock();
+        
+        if(\getenv('SCRUTINIZER')) {
+            $this->assertTrue($driver->supportsCursors());
+        } elseif(\getenv('TRAVIS')) {
+            $this->assertFalse($driver->supportsCursors());
+        }
+        
+        if(!$driver->supportsCursors()) {
+            $this->expectException(\LogicException::class);
+        }
+        
+        $cursor = $this->await($driver->createCursor($client, 'SELECT * FROM test_cursors'));
+        $this->assertInstanceOf(\Plasma\Drivers\MySQL\StatementCursor::class, $cursor);
+        
+        $client
+            ->expects($this->once())
+            ->method('checkinConnection')
+            ->with($driver);
+        
+        $row = $this->await($cursor->fetch());
+        $this->assertSame(array('testcol' => 'HELLO'), $row);
+        
+        $row2 = $this->await($cursor->fetch());
+        $this->assertSame(array('testcol' => 'WORLD'), $row2);
+        
+        $row3_4 = $this->await($cursor->fetch(2));
+        $this->assertSame(array(
+            array('testcol' => 'PLASMA'),
+            array('testcol' => 'IN')
+        ), $row3_4);
+        
+        $row5 = $this->await($cursor->fetch());
+        $this->assertSame(array('testcol' => 'ACTION'), $row5);
+        
+        $falsy = $this->await($cursor->fetch());
+        $this->assertFalse($falsy);
+        
+        \Clue\React\Block\sleep(0.1, $this->loop);
+    }
+    
     function insertIntoTestString(int $colnum, string $value): array {
         $values = array();
         
@@ -2242,6 +2291,7 @@ class DriverTest extends TestCase {
                 'quit',
                 'runCommand',
                 'runQuery',
+                'createCursor',
                 'query',
                 'prepare',
                 'execute',

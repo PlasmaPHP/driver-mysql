@@ -41,6 +41,12 @@ unix://user:password@localhost/database
 
 When using unix socket connections without a database, a trailing slash is required. When using `localhost` as unix socket path, the default mysql path will be used.
 
+# Cursors
+MySQL supports cursors since 5.7 (MariaDB 10.3). As such the driver will reject MySQL versions below 5.7, respectively MariaDB 10.3,
+as they do not support cursors (even though the capabilities may say otherwise).
+
+If known at driver method call time, the driver will throw a `LogicException`, or postpone it and reject the promise with a `LogicException`.  
+
 # Type Extensions
 This driver uses a type extensions manager registered under the name `driver-mysql`.
 When decoding rows received from the database, the type extensions can get two different type of values to decode, depending on the used protocol.

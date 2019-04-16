@@ -87,7 +87,6 @@ class Statement implements \Plasma\StatementInterface {
      * Destructor. Runs once the instance goes out of scope.
      * Please do not rely on the destructor to properly close your statement.
      * ALWAYS explicitely close the statement once you're done.
-     * @throws \Plasma\Exception
      * @codeCoverageIgnore
      */
     function __destruct() {
@@ -174,6 +173,33 @@ class Statement implements \Plasma\StatementInterface {
      */
     function runQuery(\Plasma\QueryBuilderInterface $query): \React\Promise\PromiseInterface {
         return $this->execute($query->getParameters());
+    }
+    
+    /**
+     * Creates a cursor.
+     * @param array  $params
+     * @return \React\Promise\PromiseInterface
+     * @throws \LogicException    Thrown if the driver or DBMS does not support cursors.
+     * @throws \Plasma\Exception  Thrown if the statement is executed after it has been closed, or if it's not a SELECT query, or for insufficent or missing parameters.
+     * @internal
+     */
+    function createCursor(array $params = array()): \React\Promise\PromiseInterface {
+        if($this->closed) {
+            throw new \Plasma\Exception('Statement has been closed');
+        } elseif(empty($this->columns)) {
+            throw new \Plasma\Exception('Query is not a SELECT query');
+        } elseif(!$this->driver->supportsCursors()) {
+            throw new \LogicException('Used DBMS version does not support cursors');
+        }
+        
+        $params = \Plasma\Utility::replaceParameters($this->rewrittenParams, $params);
+        
+        $execute = new \Plasma\Drivers\MySQL\Commands\StatementExecuteCommand($this->driver, $this->id, $this->query, $params, $this->params, 0x05);
+        $this->driver->executeCommand($execute);
+        
+        return $execute->getPromise()->then(function () {
+            return (new \Plasma\Drivers\MySQL\StatementCursor($this->driver, $this));
+        });
     }
     
     /**

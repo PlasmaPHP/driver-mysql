@@ -97,6 +97,11 @@ class Driver implements \Plasma\DriverInterface {
     protected $charset;
     
     /**
+     * @var bool|null
+     */
+    protected $cursorSupported;
+    
+    /**
      * Constructor.
      * @param \React\EventLoop\LoopInterface  $loop
      * @param array                           $options
@@ -717,6 +722,35 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
+     * Creates a new cursor to seek through SELECT query results. Resolves with a `CursorInterface` instance.
+     * @param \Plasma\ClientInterface  $client
+     * @param string                   $query
+     * @param array                    $params
+     * @return \React\Promise\PromiseInterface
+     * @throws \LogicException  Thrown if the driver or DBMS does not support cursors.
+     * @throws \Plasma\Exception
+     */
+    function createCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
+        if($this->goingAway) {
+            return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        } elseif(!$this->supportsCursors()) {
+            throw new \LogicException('Used DBMS version does not support cursors');
+        }
+        
+        return $this->prepare($client, $query)->then(function (\Plasma\Drivers\MySQL\Statement $statement) use ($params) {
+            if(!$this->supportsCursors()) {
+                $statement->close()->then(null, function () {
+                    $this->close();
+                });
+                
+                throw new \LogicException('Used DBMS version does not support cursors');
+            }
+            
+            return $statement->createCursor($params);
+        });
+    }
+    
+    /**
      * Executes a command.
      * @param \Plasma\CommandInterface  $command
      * @return void
@@ -789,6 +823,33 @@ class Driver implements \Plasma\DriverInterface {
      */
     function getOptions(): array {
         return $this->options;
+    }
+    
+    /**
+     * Whether the DBMS supports cursors.
+     * @return bool
+     * @internal
+     */
+    function supportsCursors(): bool {
+        if($this->getHandshake() === null) {
+            return true; // Let's be optimistic
+        } elseif($this->cursorSupported !== null) {
+            return $this->cursorSupported;
+        }
+        
+        $version = $this->getHandshake()->serverVersion;
+        $mariaDB = (int) (\stripos($version, 'MariaDB') !== false);
+        $version = \explode('-', $version)[$mariaDB];
+    
+        $this->cursorSupported = (
+            (($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) > 0) &&
+            (
+                ($mariaDB && \version_compare($version, '10.3', '>=')) ||
+                (!$mariaDB && \version_compare($version, '5.7', '>='))
+            )
+        );
+        
+        return $this->cursorSupported;
     }
     
     /**

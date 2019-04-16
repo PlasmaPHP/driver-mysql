@@ -63,7 +63,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_TRANSACTIONS |
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION |
         \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41 |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF
+        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF |
+        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS
     );
     
     /**
@@ -547,7 +548,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 $command = $this->currentCommand;
                 $this->currentCommand = null;
                 
-                $command->onError($error);
+                $command->onError($e);
             } else {
                 $this->emit('error', array($e));
             }
