@@ -140,6 +140,13 @@ class CapabilityFlags {
     const CLIENT_MULTI_RESULTS = 131072;
     
     /**
+     * Enable/disable multi-results.
+     * @var int
+     * @source
+     */
+    const CLIENT_PS_MULTI_RESULTS = 262144;
+    
+    /**
     * Client supports plugin authentication (1 << 19).
     * @var int
     * @source

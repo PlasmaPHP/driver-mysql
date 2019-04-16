@@ -717,7 +717,7 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
-     * Creates a new cursor to seek through SELECT query results.
+     * Creates a new cursor to seek through SELECT query results. Resolves with a `CursorInterface` instance.
      * @param \Plasma\ClientInterface  $client
      * @param string                   $query
      * @param array                    $params

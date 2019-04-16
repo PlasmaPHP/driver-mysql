@@ -12,7 +12,7 @@ namespace Plasma\Drivers\MySQL;
 /**
  * Represents a Statement Cursor.
  */
-class StatementCursor {
+class StatementCursor implements \Plasma\CursorInterface {
     /**
      * @var \Plasma\Drivers\MySQL\Driver
      */
@@ -97,6 +97,7 @@ class StatementCursor {
             $this->statement->getQuery(),
             $this->statement->getParams(),
             array(),
+            $this->statement->getColumns(),
             $amount
         );
         $this->driver->executeCommand($fetch);
@@ -111,7 +112,7 @@ class StatementCursor {
      * @internal
      */
     function processOkMessage($message): void {
-        if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_MORE_RESULTS_EXISTS) === 0) {
+        if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_LAST_ROW_SENT) > 0) {
             $this->close()->then(null, function (\Throwable $e) {
                 $this->driver->emit('error', $e);
             });

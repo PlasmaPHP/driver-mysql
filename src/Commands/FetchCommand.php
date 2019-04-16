@@ -44,12 +44,23 @@ class FetchCommand extends StatementExecuteCommand {
      * @param string                                 $query
      * @param array                                  $params
      * @param \Plasma\ColumnDefinitionInterface[]    $paramsDef
+     * @param \Plasma\ColumnDefinitionInterface[]    $fields
      * @param int                                    $amount
      */
-    function __construct(\Plasma\DriverInterface $driver, \Plasma\Drivers\MySQL\StatementCursor $cursor, $id, string $query, array $params, array $paramsDef, int $amount) {
+    function __construct(
+        \Plasma\DriverInterface $driver,
+        \Plasma\Drivers\MySQL\StatementCursor $cursor,
+        $id,
+        string $query,
+        array $params,
+        array $paramsDef,
+        array $fields,
+        int $amount
+    ) {
         parent::__construct($driver, $id, $query, $params, $paramsDef, 0);
         
         $this->cursor = $cursor;
+        $this->fields = $fields;
         $this->amount = $amount;
         
         $this->on('data', function ($row) {
@@ -61,9 +72,10 @@ class FetchCommand extends StatementExecuteCommand {
             // Let the event loop read the stream buffer before resolving
             $this->driver->getLoop()->futureTick(function () {
                 // Unwrap if we only have one row
-                $rows = (\count($this->rows) === 1 ? \reset($this->rows) : $this->rows);
+                $crows = \count($this->rows);
+                $rows = ($crows === 1 ? \reset($this->rows) : ($crows === 0 ? false : $this->rows));
                 
-                $this->deferred->resolve($this->rows);
+                $this->deferred->resolve($rows);
                 $this->rows = null;
             });
         });

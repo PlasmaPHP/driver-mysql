@@ -99,7 +99,7 @@ class QueryCommand extends PromiseCommand {
         $buffer = $value->getBuffer();
         $parser = $value->getParser();
         
-        if($this->resolveValue !== null) {
+        if($this instanceof \Plasma\Drivers\MySQL\Commands\FetchCommand || $this->resolveValue !== null) {
             $row = $this->parseResultsetRow($buffer);
             $this->emit('data', array($row));
         } else {

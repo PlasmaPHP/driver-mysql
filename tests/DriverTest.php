@@ -1403,7 +1403,9 @@ class DriverTest extends TestCase {
         $this->assertSame(array('testcol' => 'ACTION'), $row5);
         
         $falsy = $this->await($cursor->fetch());
-        $this->assertFalse($row5);
+        $this->assertFalse($falsy);
+        
+        \Clue\React\Block\sleep(0.1, $this->loop);
     }
     
     function insertIntoTestString(int $colnum, string $value): array {
