@@ -107,14 +107,14 @@ class StatementCursor implements \Plasma\CursorInterface {
     
     /**
      * Processes the OK or EOF message.
-     * @param \Plasma\Drivers\MySQL\Messages\OkResponseMessage|\Plasma\Drivers\MySQL\Messages\EOFMessage
+     * @param \Plasma\Drivers\MySQL\Messages\OkResponseMessage|\Plasma\Drivers\MySQL\Messages\EOFMessage  $message
      * @return void
      * @internal
      */
     function processOkMessage($message): void {
         if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_LAST_ROW_SENT) > 0) {
             $this->close()->then(null, function (\Throwable $e) {
-                $this->driver->emit('error', $e);
+                $this->driver->emit('error', array($e));
             });
         }
     }
