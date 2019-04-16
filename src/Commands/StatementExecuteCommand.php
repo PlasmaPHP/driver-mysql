@@ -126,7 +126,7 @@ class StatementExecuteCommand extends QueryCommand {
      * @throws \Plasma\Exception
      */
     function onNext($value): void {
-        if($this->cursor > 0) {
+        if($this->cursor > 0 && $this->fieldsCount <= \count($this->fields)) {
             if(!($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage)) {
                 throw new \Plasma\Exception('Requested a cursor, but received row instead');
             } elseif(($value->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0) {
