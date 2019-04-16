@@ -42,7 +42,6 @@ class StatementCursor implements \Plasma\CursorInterface {
      * Destructor. Runs once the instance goes out of scope.
      * Please do not rely on the destructor to properly close your cursor.
      * ALWAYS explicitely close the cursor once you're done.
-     * @throws \Plasma\Exception
      * @codeCoverageIgnore
      */
     function __destruct() {
