@@ -80,6 +80,7 @@ class StatementCursor implements \Plasma\CursorInterface {
      * Fetches the given amount of rows using the cursor. Resolves with the row, an array of rows (if amount > 1), or false if no more results exist.
      * @param int  $amount
      * @return \React\Promise\PromiseInterface
+     * @throws \LogicException    Thrown if the driver or DBMS does not support cursors.
      * @throws \Plasma\Exception  Thrown if the underlying statement has been closed.
      */
     function fetch(int $amount = 1): \React\Promise\PromiseInterface {

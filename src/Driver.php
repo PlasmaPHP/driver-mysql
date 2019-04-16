@@ -722,14 +722,37 @@ class Driver implements \Plasma\DriverInterface {
      * @param string                   $query
      * @param array                    $params
      * @return \React\Promise\PromiseInterface
+     * @throws \LogicException  Thrown if the driver or DBMS does not support cursors.
      * @throws \Plasma\Exception
      */
     function createCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
+        } elseif(
+            $this->getHandshake() !== null &&
+            (
+                ($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
+                \version_compare($this->getHandshake()->serverVersion, '5.7', '<')
+            )
+        ) {
+            throw new \LogicException('Used DBMS version does not support cursors');
         }
         
         return $this->prepare($client, $query)->then(function (\Plasma\Drivers\MySQL\Statement $statement) use ($params) {
+            if(
+                $this->getHandshake() !== null &&
+                (
+                    ($this->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
+                    \version_compare($this->getHandshake()->serverVersion, '5.7', '<')
+                )
+            ) {
+                $statement->close()->then(null, function () {
+                    $this->close();
+                });
+                
+                throw new \LogicException('Used DBMS version does not support cursors');
+            }
+            
             return $statement->createCursor($params);
         });
     }

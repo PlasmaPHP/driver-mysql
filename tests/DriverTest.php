@@ -1371,6 +1371,7 @@ class DriverTest extends TestCase {
     }
     
     function testCursor() {
+        /** @var \Plasma\Drivers\MySQL\Driver  $driver */
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
@@ -1379,13 +1380,17 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
+        if(\version_compare($driver->getHandshake()->serverVersion, '5.7', '<')) {
+            $this->expectException(\LogicException::class);
+        }
+        
+        $cursor = $this->await($driver->createCursor($client, 'SELECT * FROM test_cursors'));
+        $this->assertInstanceOf(\Plasma\Drivers\MySQL\StatementCursor::class, $cursor);
+    
         $client
             ->expects($this->once())
             ->method('checkinConnection')
             ->with($driver);
-        
-        $cursor = $this->await($driver->createCursor($client, 'SELECT * FROM test_cursors'));
-        $this->assertInstanceOf(\Plasma\Drivers\MySQL\StatementCursor::class, $cursor);
         
         $row = $this->await($cursor->fetch());
         $this->assertSame(array('testcol' => 'HELLO'), $row);

@@ -179,6 +179,7 @@ class Statement implements \Plasma\StatementInterface {
      * Creates a cursor.
      * @param array  $params
      * @return \React\Promise\PromiseInterface
+     * @throws \LogicException    Thrown if the driver or DBMS does not support cursors.
      * @throws \Plasma\Exception  Thrown if the statement is executed after it has been closed, or if it's not a SELECT query, or for insufficent or missing parameters.
      * @internal
      */
@@ -187,6 +188,14 @@ class Statement implements \Plasma\StatementInterface {
             throw new \Plasma\Exception('Statement has been closed');
         } elseif(empty($this->columns)) {
             throw new \Plasma\Exception('Query is not a SELECT query');
+        } elseif(
+            $this->driver->getHandshake() !== null &&
+            (
+                ($this->driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS) === 0 ||
+                \version_compare($this->driver->getHandshake()->serverVersion, '5.7', '<')
+            )
+        ) {
+            throw new \LogicException('Used DBMS version does not support cursors');
         }
         
         $params = \Plasma\Utility::replaceParameters($this->rewrittenParams, $params);
