@@ -38,6 +38,6 @@ install:
 #  - sudo mysqld --defaults-file=./.travis/my.cnf
 
 script:
-  - ./.setup_db.sh
+  - sudo ./.setup_db.sh
   - ./vendor/bin/phpunit tests --exclude-group tls
   - mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'

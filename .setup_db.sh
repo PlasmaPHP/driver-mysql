@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/bash
 mysql -e 'CREATE DATABASE IF NOT EXISTS plasma_tmp'
 mysql -e 'CREATE TABLE plasma_tmp.test_cursors (testcol VARCHAR(50) NOT NULL)'
 mysql -e 'INSERT INTO plasma_tmp.test_cursors VALUES ("HELLO"), ("WORLD"), ("PLASMA"), ("IN"), ("ACTION")'
