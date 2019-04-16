@@ -14,7 +14,7 @@
         "ext-bcmath": "*",
         "ext-mbstring": "*",
         "plasma/binary-buffer": "^0.1|dev-master",
-        "plasma/core": "^0.2|dev-master",
+        "plasma/core": "^0.3|dev-master",
         "charlottedunois/validator": "^0.3.1",
         "evenement/evenement": "^3.0|^2.0",
         "react/event-loop": "^1.0|^0.5|^0.4",
