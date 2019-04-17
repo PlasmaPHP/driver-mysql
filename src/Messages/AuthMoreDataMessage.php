@@ -10,8 +10,7 @@
 namespace Plasma\Drivers\MySQL\Messages;
 
 /**
- * Represents a Auth More Data Message.
- * @internal
+ * Represents an Auth More Data Message.
  */
 class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
@@ -21,12 +20,14 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @internal
      */
     function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
         $this->parser = $parser;
@@ -35,6 +36,7 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     /**
      * Get the identifier for the packet.
      * @return string
+     * @internal
      */
     static function getID(): string {
         return "\x01";
@@ -46,6 +48,7 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
      * @param \Plasma\BinaryBuffer  $buffer
      * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @internal
      */
     function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $this->authPluginData = $buffer->getContents();
@@ -57,6 +60,7 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     /**
      * Get the parser which created this message.
      * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
         return $this->parser;
@@ -65,6 +69,7 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
      * @return int
+     * @internal
      */
     function setParserState(): int {
         return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH;

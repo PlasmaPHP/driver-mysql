@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 
 /**
  * Represents a Prepare Statement Ok Message.
- * @internal
  */
 class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
@@ -40,12 +39,14 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @internal
      */
     function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
         $this->parser = $parser;
@@ -54,6 +55,7 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Get the identifier for the packet.
      * @return string
+     * @internal
      */
     static function getID(): string {
         return "\x00";
@@ -65,6 +67,7 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
      * @param \Plasma\BinaryBuffer  $buffer
      * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @internal
      */
     function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         if($buffer->getSize() < 11) {
@@ -90,6 +93,7 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Get the parser which created this message.
      * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
         return $this->parser;
@@ -98,6 +102,7 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
      * @return int
+     * @internal
      */
     function setParserState(): int {
         return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;

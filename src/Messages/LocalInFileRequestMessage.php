@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 
 /**
  * Represents a Local In File Data Message.
- * @internal
  */
 class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
@@ -22,6 +21,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @internal
      */
     function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
         $this->parser = $parser;
@@ -30,6 +30,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Get the identifier for the packet.
      * @return string
+     * @internal
      */
     static function getID(): string {
         return "\xFB";
@@ -41,6 +42,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
      * @param \Plasma\BinaryBuffer  $buffer
      * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @internal
      */
     function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
@@ -65,6 +67,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Get the parser which created this message.
      * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
         return $this->parser;
@@ -73,6 +76,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
      * @return int
+     * @internal
      */
     function setParserState(): int {
         return -1;

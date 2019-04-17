@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 
 /**
  * Represents a Handshake Message.
- * @internal
  */
 class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
@@ -65,12 +64,14 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     
     /**
      * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
      * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @internal
      */
     function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
         $this->parser = $parser;
@@ -79,6 +80,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Get the identifier for the packet.
      * @return string
+     * @internal
      */
     static function getID(): string {
         return "";
@@ -90,6 +92,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
      * @param \Plasma\BinaryBuffer  $buffer
      * @return bool
      * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @internal
      */
     function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
         $protocol = $buffer->readInt1();
@@ -113,6 +116,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Get the parser which created this message.
      * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @internal
      */
     function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
         return $this->parser;
@@ -121,6 +125,7 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
      * @return int
+     * @internal
      */
     function setParserState(): int {
         return \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE;

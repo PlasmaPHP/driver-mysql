@@ -406,6 +406,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                 case $isOkMessage:
                     $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
                     $this->lastOkMessage = $message;
+                    
+                    $this->driver->getLoop()->futureTick(function () use ($message) {
+                        $this->driver->emit('eventRelay', array('serverOkMessage', $message));
+                    });
                 break;
                 case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID()):
                     $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($this);
