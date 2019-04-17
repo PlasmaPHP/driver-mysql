@@ -730,7 +730,7 @@ class Driver implements \Plasma\DriverInterface {
      * @throws \LogicException  Thrown if the driver or DBMS does not support cursors.
      * @throws \Plasma\Exception
      */
-    function createCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
+    function createReadCursor(\Plasma\ClientInterface $client, string $query, array $params = array()): \React\Promise\PromiseInterface {
         if($this->goingAway) {
             return \React\Promise\reject((new \Plasma\Exception('Connection is going away')));
         } elseif(!$this->supportsCursors()) {
@@ -746,7 +746,7 @@ class Driver implements \Plasma\DriverInterface {
                 throw new \LogicException('Used DBMS version does not support cursors');
             }
             
-            return $statement->createCursor($params);
+            return $statement->createReadCursor($params);
         });
     }
     

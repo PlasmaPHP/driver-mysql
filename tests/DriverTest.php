@@ -1370,7 +1370,7 @@ class DriverTest extends TestCase {
         $this->await($prep);
     }
     
-    function testCursor() {
+    function testReadCursor() {
         /** @var \Plasma\Drivers\MySQL\Driver  $driver */
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -1390,7 +1390,7 @@ class DriverTest extends TestCase {
             $this->expectException(\LogicException::class);
         }
         
-        $cursor = $this->await($driver->createCursor($client, 'SELECT * FROM test_cursors'));
+        $cursor = $this->await($driver->createReadCursor($client, 'SELECT * FROM test_cursors'));
         $this->assertInstanceOf(\Plasma\Drivers\MySQL\StatementCursor::class, $cursor);
         
         $client
@@ -2291,7 +2291,7 @@ class DriverTest extends TestCase {
                 'quit',
                 'runCommand',
                 'runQuery',
-                'createCursor',
+                'createReadCursor',
                 'query',
                 'prepare',
                 'execute',

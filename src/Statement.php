@@ -183,7 +183,7 @@ class Statement implements \Plasma\StatementInterface {
      * @throws \Plasma\Exception  Thrown if the statement is executed after it has been closed, or if it's not a SELECT query, or for insufficent or missing parameters.
      * @internal
      */
-    function createCursor(array $params = array()): \React\Promise\PromiseInterface {
+    function createReadCursor(array $params = array()): \React\Promise\PromiseInterface {
         if($this->closed) {
             throw new \Plasma\Exception('Statement has been closed');
         } elseif(empty($this->columns)) {
