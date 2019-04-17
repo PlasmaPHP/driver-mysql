@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 
 /**
  * Represents an incoming message.
- * @internal
  */
 interface MessageInterface {
     /**

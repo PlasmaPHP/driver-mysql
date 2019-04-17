@@ -45,7 +45,12 @@ When using unix socket connections without a database, a trailing slash is requi
 MySQL supports cursors since 5.7 (MariaDB 10.3). As such the driver will reject MySQL versions below 5.7, respectively MariaDB 10.3,
 as they do not support cursors (even though the capabilities may say otherwise).
 
-If known at driver method call time, the driver will throw a `LogicException`, or postpone it and reject the promise with a `LogicException`.  
+If known at driver method call time, the driver will throw a `LogicException`, or postpone it and reject the promise with a `LogicException`.
+
+# Server OK Response Messages
+The driver exposes every OK response message packet of the server through a Plasma Client event called `serverOkMessage`. The argument is an instance of `Messages\OkResponseMessage`.
+
+As such advanced users can check the status of the server and perform certain actions, or just log it for pure statistics purposes.  
 
 # Type Extensions
 This driver uses a type extensions manager registered under the name `driver-mysql`.

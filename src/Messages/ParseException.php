@@ -11,7 +11,6 @@ namespace Plasma\Drivers\MySQL\Messages;
 
 /**
  * Represents an exception during message parsing.
- * @internal
  */
 class ParseException extends \Plasma\Exception {
     /**

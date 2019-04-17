@@ -76,6 +76,13 @@ class DriverTest extends TestCase {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
         
+        $deferred = new \React\Promise\Deferred();
+        $driver->on('eventRelay', function (string $event, $arg) use ($deferred) {
+            if($event === 'serverOkMessage') {
+                $deferred->resolve($arg);
+            }
+        });
+        
         $prom = $this->connect($driver, 'localhost', 'mysql');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
@@ -85,6 +92,9 @@ class DriverTest extends TestCase {
         
         $prom2 = $this->connect($driver, 'localhost');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        
+        $msg = $this->await($deferred->promise(), 0.1);
+        $this->assertInstanceOf(\Plasma\Drivers\MySQL\Messages\OkResponseMessage::class, $msg);
     }
     
     function testConnectWithPort() {
