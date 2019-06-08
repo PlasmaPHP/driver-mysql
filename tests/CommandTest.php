@@ -21,7 +21,7 @@ class CommandTest extends TestCase {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
                 
-                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                [ $socket ] = \stream_socket_pair((\DIRECTORY_SEPARATOR === '\\' ? \STREAM_PF_INET : \STREAM_PF_UNIX), \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
                 $con = new \React\Socket\Connection($socket, $loop);
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
                 
@@ -46,7 +46,7 @@ class CommandTest extends TestCase {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
     
-                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                [ $socket ] = \stream_socket_pair((\DIRECTORY_SEPARATOR === '\\' ? \STREAM_PF_INET : \STREAM_PF_UNIX), \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
                 $con = new \React\Socket\Connection($socket, $loop);
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
                 
@@ -57,7 +57,7 @@ class CommandTest extends TestCase {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
     
-                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                [ $socket ] = \stream_socket_pair((\DIRECTORY_SEPARATOR === '\\' ? \STREAM_PF_INET : \STREAM_PF_UNIX), \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
                 $con = new \React\Socket\Connection($socket, $loop);
                 
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
