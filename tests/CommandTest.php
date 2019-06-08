@@ -9,7 +9,7 @@
 
 namespace Plasma\Drivers\MySQL\Tests;
 
-class CommandsTest extends TestCase {
+class CommandTest extends TestCase {
     function testEncodingThrowException() {
         $loop = \React\EventLoop\Factory::create();
         $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
@@ -21,7 +21,8 @@ class CommandsTest extends TestCase {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
                 
-                $con = new \React\Socket\Connection(\fopen('php://memory', 'r+'), $loop);
+                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                $con = new \React\Socket\Connection($socket, $loop);
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
                 
                 return (new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser));
@@ -44,8 +45,9 @@ class CommandsTest extends TestCase {
             function getHandshakeMessage() {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
-                
-                $con = new \React\Socket\Connection(\fopen('php://memory', 'r+'), $loop);
+    
+                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                $con = new \React\Socket\Connection($socket, $loop);
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
                 
                 return (new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser));
@@ -54,8 +56,10 @@ class CommandsTest extends TestCase {
             function invokeCommand(\Plasma\CommandInterface $command) {
                 $loop = \React\EventLoop\Factory::create();
                 $driver = new \Plasma\Drivers\MySQL\Driver($loop, array());
+    
+                [ $socket ] = \stream_socket_pair(\STREAM_PF_INET, \STREAM_SOCK_STREAM,  \STREAM_IPPROTO_IP);
+                $con = new \React\Socket\Connection($socket, $loop);
                 
-                $con = new \React\Socket\Connection(\fopen('php://memory', 'r+'), $loop);
                 $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $con);
                 $parser->invokeCommand($command);
             }

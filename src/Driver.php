@@ -280,34 +280,6 @@ class Driver implements \Plasma\DriverInterface {
     }
     
     /**
-     * Pauses the underlying stream I/O consumption.
-     * If consumption is already paused, this will do nothing.
-     * @return bool  Whether the operation was successful.
-     */
-    function pauseStreamConsumption(): bool {
-        if($this->connection === null || $this->goingAway) {
-            return false;
-        }
-        
-        $this->connection->pause();
-        return true;
-    }
-    
-    /**
-     * Resumes the underlying stream I/O consumption.
-     * If consumption is not paused, this will do nothing.
-     * @return bool  Whether the operation was successful.
-     */
-    function resumeStreamConsumption(): bool {
-        if($this->connection === null || $this->goingAway) {
-            return false;
-        }
-        
-        $this->connection->resume();
-        return true;
-    }
-    
-    /**
      * Closes all connections gracefully after processing all outstanding requests.
      * @return \React\Promise\PromiseInterface
      */

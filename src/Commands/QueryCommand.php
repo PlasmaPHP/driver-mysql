@@ -119,7 +119,7 @@ class QueryCommand extends PromiseCommand {
      * @return void
      */
     function createResolve(): void {
-        $this->resolveValue = new \Plasma\StreamQueryResult($this->driver, $this, 0, 0, null, $this->fields);
+        $this->resolveValue = new \Plasma\StreamQueryResult($this, 0, 0, null, $this->fields);
         $this->deferred->resolve($this->resolveValue);
     }
     

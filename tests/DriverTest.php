@@ -264,14 +264,6 @@ class DriverTest extends TestCase {
         $this->await($prom);
     }
     
-    function testPauseStreamConsumption() {
-        $this->markTestSkipped('Not implemented yet');
-    }
-    
-    function testResumeStreamConsumption() {
-        $this->markTestSkipped('Not implemented yet');
-    }
-    
     function testClose() {
         $driver = $this->factory->createDriver();
         $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
@@ -910,19 +902,6 @@ class DriverTest extends TestCase {
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($connect, 0.1);
-    }
-    
-    function testGoingAwayStreamConsumption() {
-        $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
-        
-        $this->assertFalse($driver->resumeStreamConsumption());
-        $this->assertFalse($driver->pauseStreamConsumption());
-        
-        $this->assertNull($driver->quit());
-        
-        $this->assertFalse($driver->resumeStreamConsumption());
-        $this->assertFalse($driver->pauseStreamConsumption());
     }
     
     function testGoingAwayClose() {
