@@ -215,7 +215,7 @@ abstract class PromiseCommand implements CommandInterface {
             $buffer->readStringLength();
         }*/
         
-        $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? 'Unknown charset "'.$charset.'"';
+        $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? null;
         $type = \Plasma\Drivers\MySQL\FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
         
         return (new \Plasma\Drivers\MySQL\ColumnDefinition($database, $table, $name, $type, $charset, $length, $flags, $decimals));
