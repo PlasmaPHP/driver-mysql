@@ -193,7 +193,7 @@ abstract class PromiseCommand implements CommandInterface {
      */
     static function parseColumnDefinition(\Plasma\BinaryBuffer $buffer): \Plasma\ColumnDefinitionInterface {
         $buffer->readStringLength(); // catalog - always "def"
-        $database = $buffer->readStringLength();
+        $buffer->readStringLength(); // database
         
         $table = $buffer->readStringLength();
         $buffer->readStringLength(); // orgTable
@@ -218,7 +218,7 @@ abstract class PromiseCommand implements CommandInterface {
         $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? null;
         $type = \Plasma\Drivers\MySQL\FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
         
-        return (new \Plasma\Drivers\MySQL\ColumnDefinition($database, $table, $name, $type, $charset, $length, $flags, $decimals));
+        return (new \Plasma\Drivers\MySQL\ColumnDefinition($table, $name, $type, $charset, $length, $flags, $decimals));
     }
     
     /**
