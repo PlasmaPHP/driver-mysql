@@ -46,7 +46,7 @@ class StatementTest extends TestCase {
         $statement = $this->getStatement();
         
         $this->assertEquals(array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('plasma_tmp', 'test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new \Plasma\Drivers\MySQL\ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         ), $statement->getParams());
     }
     
@@ -54,7 +54,7 @@ class StatementTest extends TestCase {
         $statement = $this->getStatement();
         
         $this->assertEquals(array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('plasma_tmp', 'test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new \Plasma\Drivers\MySQL\ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         ), $statement->getColumns());
     }
     
@@ -127,11 +127,11 @@ class StatementTest extends TestCase {
         $paramsR = array(0 => ':id');
         
         $params = array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('plasma_tmp', 'test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new \Plasma\Drivers\MySQL\ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         );
         
         $columns = array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('plasma_tmp', 'test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new \Plasma\Drivers\MySQL\ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
         );
         
         $statement = new \Plasma\Drivers\MySQL\Statement($client, $this->driver, 42, $query, $queryR, $paramsR, $params, $columns);
