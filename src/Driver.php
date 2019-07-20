@@ -27,7 +27,7 @@ class Driver implements \Plasma\DriverInterface {
     protected $options = array(
         'characters.set' => 'utf8mb4',
         'characters.collate' => null,
-        'compression.enable' => !true,
+        'compression.enable' => true,
         'localInFile.enable' => false,
         'tls.context' => array(),
         'tls.force' => true,

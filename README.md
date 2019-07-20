@@ -47,6 +47,11 @@ as they do not support cursors (even though the capabilities may say otherwise).
 
 If known at driver method call time, the driver will throw a `LogicException`, or postpone it and reject the promise with a `LogicException`.
 
+# Compression
+
+By default packet compression is enabled and all packets equal to or larger than 50 bytes are automatically compressed (as long as zlib is available).
+This can be disabled using the `compression.enable` flag.
+
 # Server OK Response Messages
 The driver exposes every OK response message packet of the server through a Plasma Client event called `serverOkMessage`. The argument is an instance of `Messages\OkResponseMessage`.
 
