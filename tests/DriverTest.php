@@ -1369,10 +1369,8 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
-        if(\getenv('SCRUTINIZER')) {
+        if(\getenv('SCRUTINIZER') || \getenv('TRAVIS')) {
             $this->assertTrue($driver->supportsCursors());
-        } elseif(\getenv('TRAVIS')) {
-            $this->assertFalse($driver->supportsCursors());
         }
         
         if(!$driver->supportsCursors()) {
