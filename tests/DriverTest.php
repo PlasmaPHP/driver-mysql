@@ -764,7 +764,7 @@ class DriverTest extends TestCase {
             ->method('checkinConnection')
             ->with($driver);
         
-        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "%\_connection%"');
+        $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "%\_connection%"  -- WE NEED MORE BYTES');
         $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
