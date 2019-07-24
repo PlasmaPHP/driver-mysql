@@ -26,7 +26,7 @@ Additionally you can create your own auth plugins, if your database server uses 
 ```php
 $loop = \React\EventLoop\Factory::create();
 
-$factory = \Plasma\Drivers\MySQL\DriverFactory::create($loop, array());
+$factory = new \Plasma\Drivers\MySQL\DriverFactory($loop, array());
 $client = \Plasma\Client::create($factory, 'user:password@localhost:3306/database', array());
 
 // Code which uses the client to run queries against the database
