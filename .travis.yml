@@ -40,5 +40,8 @@ before_script:
 script:
   - export MDB_PORT_SECURE=3307
   - sudo sh ./setup_db.sh
-  - ./vendor/bin/phpunit tests
+  - ./vendor/bin/phpunit tests --exclude-group=tls
+  - sudo systemctl stop mysql
+  - mysqld --defaults-file=./.travis/my.cnf &
+  - ./vendor/bin/phpunit tests --group=tls
   - mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
