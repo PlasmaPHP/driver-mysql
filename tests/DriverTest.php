@@ -18,7 +18,7 @@ class DriverTest extends TestCase {
     function setUp() {
         parent::setUp();
         
-        $connector = new \React\Socket\Connector(array('tls' => array(
+        $connector = new \React\Socket\Connector($this->loop, array('tls' => array(
             'allow_self_signed' => true,
             'verify_peer' => false,
             'verify_peer_name' => false
