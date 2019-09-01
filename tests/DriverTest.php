@@ -19,9 +19,7 @@ class DriverTest extends TestCase {
         parent::setUp();
         
         $connector = new \React\Socket\Connector($this->loop, array('tls' => array(
-            'allow_self_signed' => true,
-            'verify_peer' => false,
-            'verify_peer_name' => false
+            'cafile' => '/var/lib/mysql/ca.pem'
         )));
         $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'connector' => $connector));
     }
