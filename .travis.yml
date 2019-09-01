@@ -38,6 +38,7 @@ script:
   - sudo sh ./setup_db.sh
   - ./vendor/bin/phpunit tests --exclude-group=tls
   - sudo systemctl stop mysql
-  - mysqld --defaults-file=./.travis/my.cnf &
+  - cp ./.travis/my.cnf ~travis/.my.cnf
+  - sudo systemctl start mysql
   - ./vendor/bin/phpunit tests --group=tls
   - mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
