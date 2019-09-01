@@ -24,21 +24,16 @@ services:
 
 install:
   - composer install -n
+  - sudo mysql_ssl_rsa_setup --uid=mysql
+  - sudo systemctl restart mysql
 #  - sh -c "sudo service mysql stop"
 #  - sh -c "if [ '$DB' = 'mysql' ]; then sudo apt-get remove mariadb-common mariadb-server; fi"
 #  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get remove mysql-common mysql-server; fi"
 #  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get install mariadb-common mariadb-server; fi"
 #  - sh -c "sudo service mysql restart"
 
-before_script:
-  - cat ~travis/.my.cnf
-  - sudo chmod +x ./.travis/gen-ssl.sh && sudo ./.travis/gen-ssl.sh
-
 script:
+  - mysql -u root -h 127.0.0.1 -e "SHOW VARIABLES LIKE '%ssl%';"
   - sudo sh ./setup_db.sh
-  - ./vendor/bin/phpunit tests --exclude-group=tls
-  - sudo systemctl stop mysql
-  - cp ./.travis/my.cnf ~travis/.my.cnf
-  - sudo systemctl start mysql
-  - ./vendor/bin/phpunit tests --group=tls
+  - ./vendor/bin/phpunit tests
   - mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
