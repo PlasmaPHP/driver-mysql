@@ -17,7 +17,13 @@ class DriverTest extends TestCase {
     
     function setUp() {
         parent::setUp();
-        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false));
+        
+        $connector = new \React\Socket\Connector(array('tls' => array(
+            'allow_self_signed' => true,
+            'verify_peer' => false,
+            'verify_peer_name' => false
+        )));
+        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'connector' => $connector));
     }
     
     function connect(\Plasma\DriverInterface $driver, string $uri, string $scheme = 'tcp'): \React\Promise\PromiseInterface {
