@@ -30,14 +30,14 @@ install:
 #  - sh -c "if [ '$DB' = 'mariadb' ]; then sudo apt-get install mariadb-common mariadb-server; fi"
 #  - sh -c "sudo service mysql restart"
 
-#before_script:
-#  - cat ~travis/.my.cnf
-#  - sudo chmod +x ./gen-ssl.sh && sudo ./gen-ssl.sh
-#  - sudo touch /var/run/mysqld/mysql_secure.sock
+before_script:
+  - cat ~travis/.my.cnf
+  - sudo chmod +x ./.travis/gen-ssl.sh && sudo ./.travis/gen-ssl.sh
+  - sudo touch /var/run/mysqld/mysql_secure.sock
 #  - sudo cp /var/lib/mysql /var/lib/mysql_secure
-#  - sudo mysqld --defaults-file=./.travis/my.cnf
+  - mysqld --defaults-file=./.travis/my.cnf &
 
 script:
   - sudo sh ./setup_db.sh
-  - ./vendor/bin/phpunit tests --exclude-group tls
+  - ./vendor/bin/phpunit tests
   - mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
