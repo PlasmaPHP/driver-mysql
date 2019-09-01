@@ -33,12 +33,8 @@ install:
 before_script:
   - cat ~travis/.my.cnf
   - sudo chmod +x ./.travis/gen-ssl.sh && sudo ./.travis/gen-ssl.sh
-  - sudo touch /var/run/mysqld/mysql_secure.sock
-#  - sudo cp /var/lib/mysql /var/lib/mysql_secure
-  - mysqld --defaults-file=./.travis/my.cnf &
 
 script:
-  - export MDB_PORT_SECURE=3307
   - sudo sh ./setup_db.sh
   - ./vendor/bin/phpunit tests --exclude-group=tls
   - sudo systemctl stop mysql
