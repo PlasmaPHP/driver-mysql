@@ -893,9 +893,8 @@ class Driver implements \Plasma\DriverInterface {
                         
                         $ssl->once('end', function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
                             $this->connectionState = static::CONNECTION_SSL_STARTUP;
-                            echo 'TLS Startup'; flush(); ob_flush();
+                            
                             $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
-                                echo 'TLS Enabled'; flush(); ob_flush();
                                 $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
                             }, function (\Throwable $error) use (&$deferred) {
                                 $deferred->reject($$error);
@@ -903,7 +902,6 @@ class Driver implements \Plasma\DriverInterface {
                             });
                         });
                         
-                        echo 'TLS request'; flush(); ob_flush();
                         return $this->parser->invokeCommand($ssl);
                     } elseif($this->options['tls.force'] || $this->options['tls.forceLocal']) {
                         $deferred->reject((new \Plasma\Exception('TLS is not supported by the server')));
