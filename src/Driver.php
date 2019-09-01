@@ -895,6 +895,7 @@ class Driver implements \Plasma\DriverInterface {
                             $this->connectionState = static::CONNECTION_SSL_STARTUP;
                             echo 'TLS Startup'; flush(); ob_flush();
                             $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
+                                echo 'TLS Enabled'; flush(); ob_flush();
                                 $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
                             }, function (\Throwable $error) use (&$deferred) {
                                 $deferred->reject($$error);
