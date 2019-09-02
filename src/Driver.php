@@ -902,7 +902,7 @@ class Driver implements \Plasma\DriverInterface {
                         };
                         
                         $ssl->once('end', function () use ($callback) {
-                            $this->loop->addTimer(0.001, $callback);
+                            $this->loop->addTimer(0.1, $callback);
                         });
                         
                         return $this->parser->invokeCommand($ssl);
