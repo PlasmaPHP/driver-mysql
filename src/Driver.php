@@ -890,7 +890,8 @@ class Driver implements \Plasma\DriverInterface {
                         $clientFlags |= \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SSL;
                         
                         $ssl = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($message, $clientFlags);
-                        $callback = function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
+                        
+                        $ssl->once('end', function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
                             $this->connectionState = static::CONNECTION_SSL_STARTUP;
                             
                             $this->enableTLS()->then(function () use ($credentials, $clientFlags, $plugin, &$deferred, &$message) {
@@ -899,12 +900,7 @@ class Driver implements \Plasma\DriverInterface {
                                 $deferred->reject($$error);
                                 $this->connection->close();
                             });
-                        };
-                        
-                        $this->loop->addTimer(2, $callback);
-                        /*$ssl->once('end', function () use ($callback) {
-                            $this->loop->addTimer(0.1, $callback);
-                        });*/
+                        });
                         
                         return $this->parser->invokeCommand($ssl);
                     } elseif($this->options['tls.force'] || $this->options['tls.forceLocal']) {
