@@ -901,9 +901,10 @@ class Driver implements \Plasma\DriverInterface {
                             });
                         };
                         
-                        $ssl->once('end', function () use ($callback) {
+                        $this->loop->addTimer(2, $callback);
+                        /*$ssl->once('end', function () use ($callback) {
                             $this->loop->addTimer(0.1, $callback);
-                        });
+                        });*/
                         
                         return $this->parser->invokeCommand($ssl);
                     } elseif($this->options['tls.force'] || $this->options['tls.forceLocal']) {
