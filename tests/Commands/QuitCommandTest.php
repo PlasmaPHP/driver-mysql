@@ -5,29 +5,34 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Commands;
 
-class QuitCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\Drivers\MySQL\Commands\QuitCommand;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+use React\Promise\Deferred;
+
+class QuitCommandTest extends TestCase {
     function testGetEncodedMessage() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
-        $this->assertFalse($command->hasFinished());
+        $command = new QuitCommand();
+        self::assertFalse($command->hasFinished());
         
-        $this->assertSame("\x01", $command->getEncodedMessage());
-        $this->assertTrue($command->hasFinished());
+        self::assertSame("\x01", $command->getEncodedMessage());
+        self::assertTrue($command->hasFinished());
     }
     
     function testSetParserState() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $command = new QuitCommand();
         
-        $this->assertSame(0, $command->setParserState());
+        self::assertSame(0, $command->setParserState());
     }
     
     function testOnComplete() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $command = new QuitCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('end', function ($a = null) use (&$deferred) {
             $deferred->resolve($a);
@@ -36,13 +41,13 @@ class QuitCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
         $command->onComplete();
         
         $a = $this->await($deferred->promise(), 0.1);
-        $this->assertNull($a);
+        self::assertNull($a);
     }
     
     function testOnError() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $command = new QuitCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('error', function (\Throwable $e) use (&$deferred) {
             $deferred->reject($e);
@@ -56,17 +61,19 @@ class QuitCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     }
     
     function testOnNext() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
-        $this->assertNull($command->onNext(null));
+        $command = new QuitCommand();
+        
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($command->onNext(null));
     }
     
     function testWaitForCompletion() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
-        $this->assertTrue($command->waitForCompletion());
+        $command = new QuitCommand();
+        self::assertTrue($command->waitForCompletion());
     }
     
     function testResetSequence() {
-        $command = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
-        $this->assertTrue($command->resetSequence());
+        $command = new QuitCommand();
+        self::assertTrue($command->resetSequence());
     }
 }

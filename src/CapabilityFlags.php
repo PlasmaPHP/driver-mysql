@@ -5,138 +5,138 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
 
 /**
  * The MySQL Capability Flags.
  */
-class CapabilityFlags {
+interface CapabilityFlags {
     /**
-    * New more secure passwords.
-    * @var int
-    * @source
-    */
+     * New more secure passwords.
+     * @var int
+     * @source
+     */
     const CLIENT_LONG_PASSWORD = 1;
     
     /**
-    * Found instead of affected rows.
-    * @var int
-    * @source
-    */
+     * Found instead of affected rows.
+     * @var int
+     * @source
+     */
     const CLIENT_FOUND_ROWS = 2;
     
     /**
-    * Get all column flags.
-    * @var int
-    * @source
-    */
+     * Get all column flags.
+     * @var int
+     * @source
+     */
     const CLIENT_LONG_FLAG = 4;
     
     /**
-    * One can specify db on connect.
-    * @var int
-    * @source
-    */
+     * One can specify db on connect.
+     * @var int
+     * @source
+     */
     const CLIENT_CONNECT_WITH_DB = 8;
     
     /**
-    * Don't allow database.table.column.
-    * @var int
-    * @source
-    */
+     * Don't allow database.table.column.
+     * @var int
+     * @source
+     */
     const CLIENT_NO_SCHEMA = 16;
     
     /**
-    * Can use compression protocol.
-    * @var int
-    * @source
-    */
+     * Can use compression protocol.
+     * @var int
+     * @source
+     */
     const CLIENT_COMPRESS = 32;
     
     /**
-    * ODBC client.
-    * @var int
-    * @source
-    */
+     * ODBC client.
+     * @var int
+     * @source
+     */
     const CLIENT_ODBC = 64;
     
     /**
-    * Can use LOAD DATA LOCAL.
-    * @var int
-    * @source
-    */
+     * Can use LOAD DATA LOCAL.
+     * @var int
+     * @source
+     */
     const CLIENT_LOCAL_FILES = 128;
     
     /**
-    * Ignore spaces before '('.
-    * @var int
-    * @source
-    */
+     * Ignore spaces before '('.
+     * @var int
+     * @source
+     */
     const CLIENT_IGNORE_SPACE = 256;
     
     /**
-    * New MySQL 4.1 protocol.
-    * @var int
-    * @source
-    */
+     * New MySQL 4.1 protocol.
+     * @var int
+     * @source
+     */
     const CLIENT_PROTOCOL_41 = 512;
     
     /**
-    * This is an interactive client.
-    * @var int
-    * @source
-    */
+     * This is an interactive client.
+     * @var int
+     * @source
+     */
     const CLIENT_INTERACTIVE = 1024;
     
     /**
-    * Switch to SSL after handshake.
-    * @var int
-    * @source
-    */
+     * Switch to SSL after handshake.
+     * @var int
+     * @source
+     */
     const CLIENT_SSL = 2048;
     
     /**
-    * IGNORE sigpipes.
-    * @var int
-    * @source
-    */
+     * IGNORE sigpipes.
+     * @var int
+     * @source
+     */
     const CLIENT_IGNORE_SIGPIPE = 4096;
     
     /**
-    * Client knows about transactions.
-    * @var int
-    * @source
-    */
+     * Client knows about transactions.
+     * @var int
+     * @source
+     */
     const CLIENT_TRANSACTIONS = 8192;
     
     /**
-    * Old flag for 4.1 protocol.
-    * @var int
-    * @source
-    */
+     * Old flag for 4.1 protocol.
+     * @var int
+     * @source
+     */
     const CLIENT_RESERVED = 16384;
     
     /**
-    * New 4.1 authentication.
-    * @var int
-    * @source
-    */
+     * New 4.1 authentication.
+     * @var int
+     * @source
+     */
     const CLIENT_SECURE_CONNECTION = 32768;
     
     /**
-    * Enable/disable multi-stmt support.
-    * @var int
-    * @source
-    */
+     * Enable/disable multi-stmt support.
+     * @var int
+     * @source
+     */
     const CLIENT_MULTI_STATEMENTS = 65536;
     
     /**
-    * Enable/disable multi-results.
-    * @var int
-    * @source
-    */
+     * Enable/disable multi-results.
+     * @var int
+     * @source
+     */
     const CLIENT_MULTI_RESULTS = 131072;
     
     /**
@@ -147,10 +147,10 @@ class CapabilityFlags {
     const CLIENT_PS_MULTI_RESULTS = 262144;
     
     /**
-    * Client supports plugin authentication (1 << 19).
-    * @var int
-    * @source
-    */
+     * Client supports plugin authentication (1 << 19).
+     * @var int
+     * @source
+     */
     const CLIENT_PLUGIN_AUTH = 524288;
     
     /**

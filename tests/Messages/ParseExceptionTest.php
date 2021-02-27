@@ -5,32 +5,37 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Messages;
 
-class ParseExceptionTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\Drivers\MySQL\Messages\ParseException;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+
+class ParseExceptionTest extends TestCase {
     function testGetState() {
-        $exc = new \Plasma\Drivers\MySQL\Messages\ParseException('');
-        $this->assertNull($exc->getState());
+        $exc = new ParseException('');
+        self::assertNull($exc->getState());
     }
     
     function testSetState() {
-        $exc = new \Plasma\Drivers\MySQL\Messages\ParseException('');
+        $exc = new ParseException('');
         
-        $this->assertNull($exc->setState(5));
-        $this->assertSame(5, $exc->getState());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($exc->setState(5));
+        self::assertSame(5, $exc->getState());
     }
     
     function testGetBuffer() {
-        $exc = new \Plasma\Drivers\MySQL\Messages\ParseException('');
-        $this->assertNull($exc->getBuffer());
+        $exc = new ParseException('');
+        self::assertNull($exc->getBuffer());
     }
     
     function testSetBuffer() {
-        $exc = new \Plasma\Drivers\MySQL\Messages\ParseException('');
+        $exc = new ParseException('');
         
         $exc->setBuffer('hello world');
-        $this->assertSame('hello world', $exc->getBuffer());
+        self::assertSame('hello world', $exc->getBuffer());
     }
 }

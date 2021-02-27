@@ -5,120 +5,136 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests;
 
+use Plasma\ClientInterface;
+use Plasma\Drivers\MySQL\ColumnDefinition;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Drivers\MySQL\Statement;
+use Plasma\Exception;
+use React\Promise\PromiseInterface;
+
 class StatementTest extends TestCase {
     /**
-     * @var \Plasma\Drivers\MySQL\Driver
+     * @var Driver
      */
     public $driver;
     
     function testGetID() {
         $statement = $this->getStatement();
-        $this->assertSame(42, $statement->getID());
+        self::assertSame(42, $statement->getID());
     }
     
     function testGetQuery() {
         $statement = $this->getStatement();
-        $this->assertSame('SELECT * FROM `users` WHERE `id` = :id', $statement->getQuery());
+        self::assertSame('SELECT * FROM `users` WHERE `id` = :id', $statement->getQuery());
     }
     
     function testCloseDouble() {
         $statement = $this->getStatement();
-        $this->assertFalse($statement->isClosed());
+        self::assertFalse($statement->isClosed());
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('executeCommand');
         
         $close = $statement->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        self::assertInstanceOf(PromiseInterface::class, $close);
         
-        $this->assertTrue($statement->isClosed());
+        self::assertTrue($statement->isClosed());
         
         $close = $statement->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        self::assertInstanceOf(PromiseInterface::class, $close);
     }
     
     function testGetParams() {
         $statement = $this->getStatement();
         
-        $this->assertEquals(array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+        self::assertEquals(array(
+            (new ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, 0, null))
         ), $statement->getParams());
     }
     
     function testGetColumns() {
         $statement = $this->getStatement();
         
-        $this->assertEquals(array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+        self::assertEquals(array(
+            (new ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, 0, null))
         ), $statement->getColumns());
     }
     
     function testExecute() {
         $statement = $this->getStatement();
         
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->exactly(2)) // +1 close
+            ->expects(self::exactly(2)) // +1 close
             ->method('executeCommand');
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('getHandshake')
-            ->will($this->returnValue((new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser))));
+            ->willReturn((new HandshakeMessage($parser)));
         
         $exec = $statement->execute(array(':id' => 5));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $exec);
+        self::assertInstanceOf(PromiseInterface::class, $exec);
     }
     
     function testExecuteAlreadyClosed() {
         $statement = $this->getStatement();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('executeCommand');
         
         $close = $statement->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        self::assertInstanceOf(PromiseInterface::class, $close);
         
-        $this->assertTrue($statement->isClosed());
+        self::assertTrue($statement->isClosed());
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $statement->execute(array(':id' => 5));
     }
     
     function testExecuteMissingParams() {
         $statement = $this->getStatement();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->once()) // 1 close
+            ->expects(self::once()) // 1 close
             ->method('executeCommand');
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $statement->execute(array());
     }
     
     function testExecuteUnknownParam() {
         $statement = $this->getStatement();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $this->driver
-            ->expects($this->once()) // 1 close
+            ->expects(self::once()) // 1 close
             ->method('executeCommand');
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $statement->execute(array(':help' => 1252));
     }
     
-    function getStatement(): \Plasma\Drivers\MySQL\Statement {
+    function getStatement(): Statement {
         $client = $this->createClientMock();
-        $this->driver = $this->getMockBuilder(\Plasma\Drivers\MySQL\Driver::class)
+        $this->driver = $this->getMockBuilder(Driver::class)
             ->disableOriginalConstructor()
             ->getMock();
         
@@ -127,19 +143,18 @@ class StatementTest extends TestCase {
         $paramsR = array(0 => ':id');
         
         $params = array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new ColumnDefinition('test', 'test_field', 'BIGINT', 'utf8mb4', null, 0, null))
         );
         
         $columns = array(
-            (new \Plasma\Drivers\MySQL\ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, false, 0, null))
+            (new ColumnDefinition('test5', 'test_field', 'BIGINT', 'utf8mb4', null, 0, null))
         );
-        
-        $statement = new \Plasma\Drivers\MySQL\Statement($client, $this->driver, 42, $query, $queryR, $paramsR, $params, $columns);
-        return $statement;
+    
+        return (new Statement($client, $this->driver, 42, $query, $queryR, $paramsR, $params, $columns));
     }
     
-    function createClientMock(): \Plasma\ClientInterface {
-        return $this->getMockBuilder(\Plasma\ClientInterface::class)
+    function createClientMock(): ClientInterface {
+        return $this->getMockBuilder(ClientInterface::class)
             ->setMethods(array(
                 'create',
                 'getConnectionCount',

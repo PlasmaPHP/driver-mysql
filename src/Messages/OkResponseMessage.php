@@ -5,14 +5,19 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\CapabilityFlags;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Drivers\MySQL\StatusFlags;
 
 /**
  * Represents an Ok Response Message.
  */
-class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class OkResponseMessage implements MessageInterface {
     /**
      * Count of affected rows by the last query.
      * @var int
@@ -57,17 +62,17 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     public $info;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -83,16 +88,16 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+    function parseMessage(BinaryBuffer $buffer): bool {
         try {
             $handshake = $this->parser->getHandshakeMessage();
             if(!$handshake) {
-                throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
+                throw new ParseException('No handshake message when receiving ok response packet');
             }
             
             $this->affectedRows = $buffer->readIntLength();
@@ -101,11 +106,11 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
             $this->statusFlags = $buffer->readInt2();
             $this->warningsCount = $buffer->readInt2();
             
-            if(($handshake->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
+            if(($handshake->capability & CapabilityFlags::CLIENT_SESSION_TRACK) !== 0) {
                 if($buffer->getSize() > 0) {
                     $this->sessionInfo = $buffer->readStringLength();
                     
-                    if(($this->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
+                    if(($this->statusFlags & StatusFlags::SERVER_SESSION_STATE_CHANGED) !== 0) {
                         $this->sessionStateChanges = $buffer->readStringLength();
                     }
                 }
@@ -122,10 +127,10 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -135,6 +140,6 @@ class OkResponseMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfa
      * @internal
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
+        return ProtocolParser::STATE_OK;
     }
 }

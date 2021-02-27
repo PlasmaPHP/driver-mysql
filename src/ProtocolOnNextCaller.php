@@ -5,9 +5,11 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Plasma\BinaryBuffer;
 
 /**
  * Protocol On Next object.
@@ -16,38 +18,38 @@ namespace Plasma\Drivers\MySQL;
  */
 class ProtocolOnNextCaller {
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      */
     protected $parser;
     
     /**
-     * @var \Plasma\BinaryBuffer
+     * @var BinaryBuffer
      */
     protected $buffer;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
-     * @param \Plasma\BinaryBuffer                  $buffer
+     * @param ProtocolParser  $parser
+     * @param BinaryBuffer    $buffer
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\BinaryBuffer $buffer) {
+    function __construct(ProtocolParser $parser, BinaryBuffer $buffer) {
         $this->parser = $parser;
         $this->buffer = $buffer;
     }
     
     /**
      * Get the parser.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
     /**
      * Get the buffer.
-     * @return \Plasma\BinaryBuffer
+     * @return BinaryBuffer
      */
-    function getBuffer(): \Plasma\BinaryBuffer {
+    function getBuffer(): BinaryBuffer {
         return $this->buffer;
     }
 }

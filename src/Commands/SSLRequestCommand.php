@@ -5,19 +5,23 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * SSLRequest command.
  * @internal
  */
 class SSLRequestCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\HandshakeMessage
+     * @var HandshakeMessage
      */
     protected $handshake;
     
@@ -33,10 +37,10 @@ class SSLRequestCommand implements CommandInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\Messages\HandshakeMessage  $handshake
-     * @param int                                              $capability
+     * @param HandshakeMessage  $handshake
+     * @param int               $capability
      */
-    function __construct(\Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake, int $capability) {
+    function __construct(HandshakeMessage $handshake, int $capability) {
         $this->handshake = $handshake;
         $this->capability = $capability;
     }
@@ -46,8 +50,8 @@ class SSLRequestCommand implements CommandInterface {
      * @return string
      */
     function getEncodedMessage(): string {
-        $maxPacketSize = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
-        $charsetNumber = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_CHARSET_NUMBER;
+        $maxPacketSize = ProtocolParser::CLIENT_MAX_PACKET_SIZE;
+        $charsetNumber = ProtocolParser::CLIENT_CHARSET_NUMBER;
         
         $packet = \pack('VVc', $this->capability, $maxPacketSize, $charsetNumber);
         $packet .= \str_repeat("\x00", 23);
@@ -61,7 +65,7 @@ class SSLRequestCommand implements CommandInterface {
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE;
+        return ProtocolParser::STATE_HANDSHAKE;
     }
     
     /**

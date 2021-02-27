@@ -5,14 +5,14 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
 
 /**
  * The MySQL Field Flags.
  */
-class FieldFlags {
+interface FieldFlags {
     /**
      * Decimal.
      * @var int

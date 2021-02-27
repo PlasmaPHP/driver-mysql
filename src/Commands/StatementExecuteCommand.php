@@ -5,9 +5,19 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Plasma\BinaryBuffer;
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Drivers\MySQL\BinaryProtocolValues;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\StatusFlags;
+use Plasma\Exception;
+use Plasma\Types\TypeExtensionsManager;
 
 /**
  * Statement Execute command.
@@ -32,7 +42,7 @@ class StatementExecuteCommand extends QueryCommand {
     protected $params;
     
     /**
-     * @var \Plasma\ColumnDefinitionInterface[]
+     * @var ColumnDefinitionInterface[]
      */
     protected $paramsDef;
     
@@ -43,14 +53,14 @@ class StatementExecuteCommand extends QueryCommand {
     
     /**
      * Constructor.
-     * @param \Plasma\DriverInterface              $driver
-     * @param mixed                                $id
-     * @param string                               $query
-     * @param array                                $params
-     * @param \Plasma\ColumnDefinitionInterface[]  $paramsDef
-     * @param int                                  $cursor
+     * @param Driver                       $driver
+     * @param mixed                        $id
+     * @param string                       $query
+     * @param array                        $params
+     * @param ColumnDefinitionInterface[]  $paramsDef
+     * @param int                          $cursor
      */
-    function __construct(\Plasma\DriverInterface $driver, $id, string $query, array $params, array $paramsDef, int $cursor = 0) {
+    function __construct(Driver $driver, $id, string $query, array $params, array $paramsDef, int $cursor = 0) {
         parent::__construct($driver, $query);
         
         $this->id = $id;
@@ -62,13 +72,14 @@ class StatementExecuteCommand extends QueryCommand {
     /**
      * Get the encoded message for writing to the database connection.
      * @return string
+     * @throws Exception
      */
     function getEncodedMessage(): string {
         $packet = \chr(static::COMMAND_ID);
-        $packet .= \Plasma\BinaryBuffer::writeInt4($this->id);
+        $packet .= BinaryBuffer::writeInt4($this->id);
         
         $packet .= \chr($this->cursor);
-        $packet .= \Plasma\BinaryBuffer::writeInt4(1); // Iteration count is always 1
+        $packet .= BinaryBuffer::writeInt4(1); // Iteration count is always 1
         
         $bitmapOffset = \strlen($packet);
         $packet .= \str_repeat("\x00", ((\count($this->params) + 7) >> 3));
@@ -87,14 +98,14 @@ class StatementExecuteCommand extends QueryCommand {
             }
             
             try {
-                $encode = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                $encode = TypeExtensionsManager::getManager('driver-mysql')
                     ->encodeType($param, $this->paramsDef[$id]);
                 
                 $unsigned = $encode->isUnsigned();
                 $type = $encode->getDatabaseType();
                 $value = $encode->getValue();
-            } catch (\Plasma\Exception $e) {
-                [ $unsigned, $type, $value ] = \Plasma\Drivers\MySQL\BinaryProtocolValues::encode($param);
+            } catch (Exception $e) {
+                [$unsigned, $type, $value] = BinaryProtocolValues::encode($param);
             }
             
             $types .= \chr($type).($unsigned ? "\x80" : "\x00");
@@ -112,25 +123,17 @@ class StatementExecuteCommand extends QueryCommand {
     }
     
     /**
-     * Whether the sequence ID should be resetted.
-     * @return bool
-     */
-    function resetSequence(): bool {
-        return true;
-    }
-    
-    /**
      * Sends the next received value into the command.
      * @param mixed  $value
      * @return void
-     * @throws \Plasma\Exception
+     * @throws Exception
      */
     function onNext($value): void {
         if($this->cursor > 0 && $this->fieldsCount > 0 && $this->fieldsCount <= \count($this->fields)) {
-            if(!($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage)) {
-                throw new \Plasma\Exception('Requested a cursor, but received row instead');
-            } elseif(($value->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0) {
-                throw new \Plasma\Exception('Requested a cursor, but did not receive one');
+            if(!($value instanceof OkResponseMessage || $value instanceof EOFMessage)) {
+                throw new Exception('Requested a cursor, but received row instead');
+            } elseif(($value->statusFlags & StatusFlags::SERVER_STATUS_CURSOR_EXISTS) === 0) {
+                throw new Exception('Requested a cursor, but did not receive one');
             }
         }
         
@@ -139,16 +142,16 @@ class StatementExecuteCommand extends QueryCommand {
     
     /**
      * Parses the binary resultset row and returns the row.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return array
+     * @throws Exception
      */
-    protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
+    protected function parseResultsetRow(BinaryBuffer $buffer): array {
         $buffer->read(1); // remove packet header
         
         $nullRow = array();
         $i = 0;
         
-        /** @var \Plasma\ColumnDefinitionInterface  $column */
         foreach($this->fields as $column) { // Handle NULL-bitmap
             if((\ord($buffer[(($i + 2) >> 3)]) & (1 << (($i + 2) % 8))) !== 0) {
                 $nullRow[$column->getName()] = null;
@@ -160,7 +163,6 @@ class StatementExecuteCommand extends QueryCommand {
         $buffer->read(((\count($this->fields) + 9) >> 3)); // Remove NULL-bitmap
         $row = array();
         
-        /** @var \Plasma\ColumnDefinitionInterface  $column */
         foreach($this->fields as $column) {
             if(\array_key_exists($column->getName(), $nullRow)) {
                 $row[$column->getName()] = null;
@@ -168,11 +170,11 @@ class StatementExecuteCommand extends QueryCommand {
             }
             
             try {
-                $value = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                $value = TypeExtensionsManager::getManager('driver-mysql')
                     ->decodeType($column->getType(), $buffer)
                     ->getValue();
-            } catch (\Plasma\Exception $e) {
-                $value = \Plasma\Drivers\MySQL\BinaryProtocolValues::decode($column, $buffer);
+            } catch (Exception $e) {
+                $value = BinaryProtocolValues::decode($column, $buffer);
             }
             
             $row[$column->getName()] = $value;

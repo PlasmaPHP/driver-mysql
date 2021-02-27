@@ -24,10 +24,10 @@ The factory also gives you the ability to asychronously interface with the files
 Additionally you can create your own auth plugins, if your database server uses an authentication plugin this driver doesn't support (yet).
 
 ```php
-$loop = \React\EventLoop\Factory::create();
+use Plasma\Client;use Plasma\Drivers\MySQL\DriverFactory;use React\EventLoop\Factory;$loop = Factory::create();
 
-$factory = new \Plasma\Drivers\MySQL\DriverFactory($loop, array());
-$client = \Plasma\Client::create($factory, 'user:password@localhost:3306/database', array());
+$factory = new DriverFactory($loop, array());
+$client = Client::create($factory, 'user:password@localhost:3306/database', array());
 
 // Code which uses the client to run queries against the database
 

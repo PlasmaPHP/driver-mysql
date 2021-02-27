@@ -5,31 +5,34 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents an Auth More Data Message.
  */
-class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class AuthMoreDataMessage implements MessageInterface {
     /**
      * @var string|null
      */
     public $authPluginData;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -45,12 +48,11 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+    function parseMessage(BinaryBuffer $buffer): bool {
         $this->authPluginData = $buffer->getContents();
         $buffer->clear();
         
@@ -59,10 +61,10 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -72,6 +74,6 @@ class AuthMoreDataMessage implements \Plasma\Drivers\MySQL\Messages\MessageInter
      * @internal
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH;
+        return ProtocolParser::STATE_AUTH;
     }
 }

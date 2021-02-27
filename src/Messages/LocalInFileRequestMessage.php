@@ -5,25 +5,29 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\DriverFactory;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents a Local In File Data Message.
  */
-class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class LocalInFileRequestMessage implements MessageInterface {
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -39,26 +43,26 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
-        $filesystem = \Plasma\Drivers\MySQL\DriverFactory::getFilesystem();
+    function parseMessage(BinaryBuffer $buffer): bool {
+        $filesystem = DriverFactory::getFilesystem();
         
         if($filesystem !== null) {
-            $filesystem->file($buffer->getContents())->getContents()->then(function (string $content) {
-                $this->sendFile($content);
-            }, function () {
-                $this->parser->sendPacket('');
-            });
+            $filesystem->file($buffer->getContents())->getContents()->then(
+                function (string $content) {
+                    $this->sendFile($content);
+                },
+                function () {
+                    $this->parser->sendPacket('');
+                }
+            );
+        } elseif(\file_exists($buffer->getContents())) {
+            $this->sendFile(\file_get_contents($buffer->getContents()));
         } else {
-            if(\file_exists($buffer->getContents())) {
-                $this->sendFile(\file_get_contents($buffer->getContents()));
-            } else {
-                $this->parser->sendPacket('');
-            }
+            $this->parser->sendPacket('');
         }
         
         return true;
@@ -66,10 +70,10 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -84,7 +88,7 @@ class LocalInFileRequestMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     
     /**
      * Sends the contents to the server.
-     * @param string $content
+     * @param string  $content
      * @return void
      */
     protected function sendFile(string $content): void {

@@ -5,16 +5,18 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
 
 /**
  * Ping command.
  * @internal
  */
 class PingCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
      * The identifier for this command.

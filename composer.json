@@ -15,14 +15,15 @@
         "ext-mbstring": "*",
         "plasma/binary-buffer": "^0.1|dev-master",
         "plasma/core": "^0.3|dev-master",
-        "charlottedunois/validator": "^0.3.1",
         "evenement/evenement": "^3.0|^2.0",
+        "obsidian/validation": "^0.1.0",
         "react/event-loop": "^1.0|^0.5|^0.4",
         "react/promise": "^2.7",
         "react/socket": "^1.1",
         "react/stream": "^1.0"
     },
     "require-dev": {
+        "ext-zlib": "*",
         "clue/block-react": "^1.3",
         "react/filesystem": "^0.1.2",
         "react/promise-stream": "^1.1",

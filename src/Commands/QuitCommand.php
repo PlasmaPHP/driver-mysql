@@ -5,16 +5,19 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Quit command.
  * @internal
  */
 class QuitCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
      * The identifier for this command.
@@ -42,7 +45,7 @@ class QuitCommand implements CommandInterface {
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_INIT;
+        return ProtocolParser::STATE_INIT;
     }
     
     /**

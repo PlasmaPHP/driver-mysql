@@ -5,9 +5,12 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\Driver;
 
 /**
  * Statement Close command.
@@ -28,10 +31,10 @@ class StatementCloseCommand extends PromiseCommand {
     
     /**
      * Constructor.
-     * @param \Plasma\DriverInterface  $driver
-     * @param mixed                    $id
+     * @param Driver  $driver
+     * @param mixed   $id
      */
-    function __construct(\Plasma\DriverInterface $driver, $id) {
+    function __construct(Driver $driver, $id) {
         parent::__construct($driver);
         $this->id = $id;
     }
@@ -42,7 +45,7 @@ class StatementCloseCommand extends PromiseCommand {
      */
     function getEncodedMessage(): string {
         $this->finished = true;
-        return \chr(static::COMMAND_ID).\Plasma\BinaryBuffer::writeInt4($this->id);
+        return \chr(static::COMMAND_ID).BinaryBuffer::writeInt4($this->id);
     }
     
     /**

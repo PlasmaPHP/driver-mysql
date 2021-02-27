@@ -5,51 +5,58 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Commands;
 
-class SSLRequestCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\Drivers\MySQL\Commands\SSLRequestCommand;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+use React\Promise\Deferred;
+
+class SSLRequestCommandTest extends TestCase {
     function testGetEncodedMessage() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
+        $handshake = new HandshakeMessage($parser);
         
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
-        $this->assertFalse($command->hasFinished());
+        $command = new SSLRequestCommand($handshake, 420);
+        self::assertFalse($command->hasFinished());
         
-        $maxPacketSize = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
-        $charsetNumber = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_CHARSET_NUMBER;
+        $maxPacketSize = ProtocolParser::CLIENT_MAX_PACKET_SIZE;
+        $charsetNumber = ProtocolParser::CLIENT_CHARSET_NUMBER;
         
         $packet = \pack('VVc', 420, $maxPacketSize, $charsetNumber);
         $packet .= \str_repeat("\x00", 23);
         
-        $this->assertSame($packet, $command->getEncodedMessage());
-        $this->assertTrue($command->hasFinished());
+        self::assertSame($packet, $command->getEncodedMessage());
+        self::assertTrue($command->hasFinished());
     }
     
     function testSetParserState() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $this->assertSame(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE, $command->setParserState());
+        self::assertSame(ProtocolParser::STATE_HANDSHAKE, $command->setParserState());
     }
     
     function testOnComplete() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('end', function ($a = null) use (&$deferred) {
             $deferred->resolve($a);
@@ -58,18 +65,18 @@ class SSLRequestCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
         $command->onComplete();
         
         $a = $this->await($deferred->promise(), 0.1);
-        $this->assertNull($a);
+        self::assertNull($a);
     }
     
     function testOnError() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('error', function (\Throwable $e) use (&$deferred) {
             $deferred->reject($e);
@@ -83,35 +90,36 @@ class SSLRequestCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     }
     
     function testOnNext() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $this->assertNull($command->onNext(null));
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($command->onNext(null));
     }
     
     function testWaitForCompletion() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $this->assertFalse($command->waitForCompletion());
+        self::assertFalse($command->waitForCompletion());
     }
     
     function testResetSequence() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $handshake = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($parser);
-        $command = new \Plasma\Drivers\MySQL\Commands\SSLRequestCommand($handshake, 420);
+        $handshake = new HandshakeMessage($parser);
+        $command = new SSLRequestCommand($handshake, 420);
         
-        $this->assertFalse($command->resetSequence());
+        self::assertFalse($command->resetSequence());
     }
 }

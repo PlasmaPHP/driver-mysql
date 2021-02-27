@@ -5,9 +5,18 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Plasma\BinaryBuffer;
+use Plasma\Exception;
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\ProtocolOnNextCaller;
+use Plasma\Drivers\MySQL\StatementCursor;
 
 /**
  * Fetch command.
@@ -22,7 +31,7 @@ class FetchCommand extends StatementExecuteCommand {
     const COMMAND_ID = 0x1C;
     
     /**
-     * @var \Plasma\Drivers\MySQL\StatementCursor
+     * @var StatementCursor
      */
     protected $cursor;
     
@@ -38,18 +47,18 @@ class FetchCommand extends StatementExecuteCommand {
     
     /**
      * Constructor.
-     * @param \Plasma\DriverInterface                $driver
-     * @param \Plasma\Drivers\MySQL\StatementCursor  $cursor
-     * @param mixed                                  $id
-     * @param string                                 $query
-     * @param array                                  $params
-     * @param \Plasma\ColumnDefinitionInterface[]    $paramsDef
-     * @param \Plasma\ColumnDefinitionInterface[]    $fields
-     * @param int                                    $amount
+     * @param Driver                       $driver
+     * @param StatementCursor              $cursor
+     * @param mixed                        $id
+     * @param string                       $query
+     * @param array                        $params
+     * @param ColumnDefinitionInterface[]  $paramsDef
+     * @param ColumnDefinitionInterface[]  $fields
+     * @param int                          $amount
      */
     function __construct(
-        \Plasma\DriverInterface $driver,
-        \Plasma\Drivers\MySQL\StatementCursor $cursor,
+        Driver $driver,
+        StatementCursor $cursor,
         $id,
         string $query,
         array $params,
@@ -63,12 +72,15 @@ class FetchCommand extends StatementExecuteCommand {
         $this->fields = $fields;
         $this->amount = $amount;
         
-        $this->on('data', function ($row) {
-            $this->rows[] = $row;
-        });
+        $this->on(
+            'data',
+            function ($row) {
+                $this->rows[] = $row;
+            }
+        );
         
         $this->removeAllListeners('end');
-        $this->once('end', function () {
+        $this->once('end',function () {
             // Let the event loop read the stream buffer before resolving
             $this->driver->getLoop()->futureTick(function () {
                 // Unwrap if we only have one row
@@ -87,8 +99,8 @@ class FetchCommand extends StatementExecuteCommand {
      */
     function getEncodedMessage(): string {
         $packet = \chr(static::COMMAND_ID);
-        $packet .= \Plasma\BinaryBuffer::writeInt4($this->id);
-        $packet .= \Plasma\BinaryBuffer::writeInt4($this->amount);
+        $packet .= BinaryBuffer::writeInt4($this->id);
+        $packet .= BinaryBuffer::writeInt4($this->amount);
         
         return $packet;
     }
@@ -97,11 +109,12 @@ class FetchCommand extends StatementExecuteCommand {
      * Sends the next received value into the command.
      * @param mixed  $value
      * @return void
+     * @throws Exception
      */
     function onNext($value): void {
-        if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
+        if($value instanceof ProtocolOnNextCaller) {
             $this->handleQueryOnNextCaller($value);
-        } elseif($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
+        } elseif($value instanceof OkResponseMessage || $value instanceof EOFMessage) {
             $this->cursor->processOkMessage($value);
             $value->getParser()->markCommandAsFinished($this);
         }

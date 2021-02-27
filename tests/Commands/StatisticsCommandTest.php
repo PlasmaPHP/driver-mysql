@@ -5,40 +5,46 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Commands;
 
-class StatisticsCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\Drivers\MySQL\Commands\StatisticsCommand;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+use React\Promise\Deferred;
+
+class StatisticsCommandTest extends TestCase {
     function testGetEncodedMessage() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
-        $this->assertFalse($command->hasFinished());
+        $command = new StatisticsCommand();
+        self::assertFalse($command->hasFinished());
         
-        $this->assertSame("\x09", $command->getEncodedMessage());
-        $this->assertFalse($command->hasFinished());
+        self::assertSame("\x09", $command->getEncodedMessage());
+        self::assertFalse($command->hasFinished());
     }
     
     function testSetParserState() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
+        $command = new StatisticsCommand();
         
-        $this->assertSame(-1, $command->setParserState());
+        self::assertSame(-1, $command->setParserState());
     }
     
     function testOnComplete() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
+        $command = new StatisticsCommand();
         
         $command->on('end', function () {
             throw new \LogicException('Unexpected end event was emitted');
         });
         
-        $this->assertNull($command->onComplete());
-        $this->assertTrue($command->hasFinished());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($command->onComplete());
+        self::assertTrue($command->hasFinished());
     }
     
     function testOnError() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
+        $command = new StatisticsCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('error', function (\Throwable $e) use (&$deferred) {
             $deferred->reject($e);
@@ -52,28 +58,28 @@ class StatisticsCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     }
     
     function testOnNext() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
+        $command = new StatisticsCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('end', function ($a) use (&$deferred) {
             $deferred->resolve($a);
         });
         
         $command->onNext((new \stdClass()));
-        $this->assertTrue($command->hasFinished());
+        self::assertTrue($command->hasFinished());
         
         $a = $this->await($deferred->promise(), 0.1);
-        $this->assertInstanceOf(\stdClass::class, $a);
+        self::assertInstanceOf(\stdClass::class, $a);
     }
     
     function testWaitForCompletion() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
-        $this->assertTrue($command->waitForCompletion());
+        $command = new StatisticsCommand();
+        self::assertTrue($command->waitForCompletion());
     }
     
     function testResetSequence() {
-        $command = new \Plasma\Drivers\MySQL\Commands\StatisticsCommand();
-        $this->assertTrue($command->resetSequence());
+        $command = new StatisticsCommand();
+        self::assertTrue($command->resetSequence());
     }
 }

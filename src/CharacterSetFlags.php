@@ -5,14 +5,14 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
 
 /**
  * The MySQL character set flags.
  */
-class CharacterSetFlags {
+interface CharacterSetFlags {
     /**
      * Collation `big5_chinese_ci`
      * @var int

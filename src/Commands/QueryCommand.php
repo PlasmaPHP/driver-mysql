@@ -5,9 +5,19 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Exception;
+use Plasma\QueryResult;
+use Plasma\StreamQueryResult;
+use Plasma\Drivers\MySQL\CapabilityFlags;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\ProtocolOnNextCaller;
 
 /**
  * Query command.
@@ -27,12 +37,12 @@ class QueryCommand extends PromiseCommand {
     protected $query;
     
     /**
-     * @var \Plasma\ColumnDefinitionInterface[]
+     * @var ColumnDefinitionInterface[]
      */
     protected $fields = array();
     
     /**
-     * @var \Plasma\StreamQueryResult|\Plasma\QueryResult|null
+     * @var StreamQueryResult|QueryResult|null
      */
     protected $resolveValue;
     
@@ -43,15 +53,15 @@ class QueryCommand extends PromiseCommand {
     
     /**
      * Constructor.
-     * @param \Plasma\DriverInterface  $driver
-     * @param string                   $query
+     * @param Driver  $driver
+     * @param string  $query
      */
-    function __construct(\Plasma\DriverInterface $driver, string $query) {
+    function __construct(Driver $driver, string $query) {
         parent::__construct($driver);
         
         $this->driver = $driver;
         $this->query = $query;
-        $this->deprecatedEOF = (($driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
+        $this->deprecatedEOF = (($driver->getHandshake()->capability & CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
     }
     
     /**
@@ -74,15 +84,19 @@ class QueryCommand extends PromiseCommand {
      * Sends the next received value into the command.
      * @param mixed  $value
      * @return void
+     * @throws Exception
      */
     function onNext($value): void {
-        if($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
+        if($value instanceof ProtocolOnNextCaller) {
             $this->handleQueryOnNextCaller($value);
-        } elseif($value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage) {
+        } elseif($value instanceof OkResponseMessage || $value instanceof EOFMessage) {
             if($this->resolveValue !== null) {
                 $value->getParser()->markCommandAsFinished($this);
-            } elseif($this->fieldsCount == 0 && $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage) { // Matching 0 and null
-                $this->resolveValue = new \Plasma\QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID, null, null);
+            }
+            /** @noinspection TypeUnsafeComparisonInspection */
+            /** @noinspection NotOptimalIfConditionsInspection */
+            elseif($this->fieldsCount == 0 && $value instanceof OkResponseMessage) { // Matching 0 and null
+                $this->resolveValue = new QueryResult($value->affectedRows, $value->warningsCount, $value->lastInsertedID, null, null);
                 $value->getParser()->markCommandAsFinished($this);
             } else {
                 $this->createResolve();
@@ -92,14 +106,15 @@ class QueryCommand extends PromiseCommand {
     
     /**
      * Handles query commands on next caller.
-     * @param \Plasma\Drivers\MySQL\ProtocolOnNextCaller  $value
+     * @param ProtocolOnNextCaller  $value
      * @return void
+     * @throws Exception
      */
-    function handleQueryOnNextCaller(\Plasma\Drivers\MySQL\ProtocolOnNextCaller $value): void {
+    function handleQueryOnNextCaller(ProtocolOnNextCaller $value): void {
         $buffer = $value->getBuffer();
         $parser = $value->getParser();
         
-        if($this instanceof \Plasma\Drivers\MySQL\Commands\FetchCommand || $this->resolveValue !== null) {
+        if($this instanceof FetchCommand || $this->resolveValue !== null) {
             $row = $this->parseResultsetRow($buffer);
             $this->emit('data', array($row));
         } else {
@@ -119,7 +134,7 @@ class QueryCommand extends PromiseCommand {
      * @return void
      */
     function createResolve(): void {
-        $this->resolveValue = new \Plasma\StreamQueryResult($this, 0, 0, null, $this->fields);
+        $this->resolveValue = new StreamQueryResult($this, 0, 0, null, $this->fields);
         $this->deferred->resolve($this->resolveValue);
     }
     

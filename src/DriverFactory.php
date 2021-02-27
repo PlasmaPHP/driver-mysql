@@ -5,16 +5,25 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Plasma\DriverFactoryInterface;
+use Plasma\DriverInterface;
+use Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface;
+use Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection;
+use Plasma\Exception;
+use Plasma\Types\TypeExtensionsManager;
+use React\EventLoop\LoopInterface;
+use React\Filesystem\FilesystemInterface;
 
 /**
  * The Driver Factory is responsible for creating the driver correctly.
  */
-class DriverFactory implements \Plasma\DriverFactoryInterface {
+class DriverFactory implements DriverFactoryInterface {
     /**
-     * @var \React\EventLoop\LoopInterface
+     * @var LoopInterface
      */
     protected $loop;
     
@@ -24,15 +33,15 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     protected $options;
     
     /**
-     * @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface[]
+     * @var AuthPluginInterface[]
      */
     protected static $authPlugins = array(
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION => \Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection::class,
-        'mysql_native_password' => \Plasma\Drivers\MySQL\AuthPlugins\AuthSecureConnection::class
+        CapabilityFlags::CLIENT_SECURE_CONNECTION => AuthSecureConnection::class,
+        'mysql_native_password' => AuthSecureConnection::class
     );
     
     /**
-     * @var \React\Filesystem\FilesystemInterface|null
+     * @var FilesystemInterface|null
      */
     protected static $filesystem;
     
@@ -53,17 +62,17 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
      * )
      * ```
      *
-     * @param \React\EventLoop\LoopInterface  $loop
-     * @param array                           $options
+     * @param LoopInterface  $loop
+     * @param array          $options
      */
-    function __construct(\React\EventLoop\LoopInterface $loop, array $options) {
+    function __construct(LoopInterface $loop, array $options) {
         if(!\function_exists('stream_socket_enable_crypto')) {
             throw new \LogicException('Encryption is not supported on your platform');
         }
         
         try {
-            \Plasma\Types\TypeExtensionsManager::registerManager('driver-mysql', null);
-        } catch (\Plasma\Exception $e) {
+            TypeExtensionsManager::registerManager('driver-mysql', null);
+        } catch (Exception $e) {
             /* One already exists, continue regardless */
         }
         
@@ -73,10 +82,10 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     
     /**
      * Creates a new driver instance.
-     * @return \Plasma\DriverInterface
+     * @return DriverInterface
      */
-    function createDriver(): \Plasma\DriverInterface {
-        return (new \Plasma\Drivers\MySQL\Driver($this->loop, $this->options));
+    function createDriver(): DriverInterface {
+        return (new Driver($this->loop, $this->options));
     }
     
     /**
@@ -91,7 +100,7 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
             throw new \InvalidArgumentException('Auth plugin for specified condition already exists');
         }
         
-        if(!\in_array(\Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface::class, \class_implements($classname, true))) {
+        if(!\in_array(AuthPluginInterface::class, \class_implements($classname, true), true)) {
             throw new \InvalidArgumentException('Specified auth plugin does not implement interface');
         }
         
@@ -100,7 +109,7 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     
     /**
      * Get the registered auth plugins.
-     * @return \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface[]
+     * @return AuthPluginInterface[]
      */
     static function getAuthPlugins(): array {
         return static::$authPlugins;
@@ -108,18 +117,18 @@ class DriverFactory implements \Plasma\DriverFactoryInterface {
     
     /**
      * Set the React Filesystem to use.
-     * @param \React\Filesystem\FilesystemInterface|null  $filesystem
+     * @param FilesystemInterface|null  $filesystem
      * @return void
      */
-    static function setFilesystem(?\React\Filesystem\FilesystemInterface $filesystem): void {
+    static function setFilesystem(?FilesystemInterface $filesystem): void {
         static::$filesystem = $filesystem;
     }
     
     /**
      * Get the React Filesystem, or null. The filesystem must be set by the user, in order to not get `null`.
-     * @return \React\Filesystem\FilesystemInterface|null
+     * @return FilesystemInterface|null
      */
-    static function getFilesystem(): ?\React\Filesystem\FilesystemInterface {
+    static function getFilesystem(): ?FilesystemInterface {
         return static::$filesystem;
     }
 }

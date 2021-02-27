@@ -5,17 +5,23 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests;
 
-class ProtolParserTest extends TestCase {
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use React\Socket\ConnectionInterface;
+
+class ProtocolParserTest extends TestCase {
     function testMaxPacketSize() {
-        $driver = $this->getMockBuilder(\Plasma\Drivers\MySQL\Driver::class)
+        $driver = $this->getMockBuilder(Driver::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $connection = $this->getMockBuilder(\React\Socket\ConnectionInterface::class)
+        $connection = $this->getMockBuilder(ConnectionInterface::class)
             ->setMethods(array(
                 'getRemoteAddress',
                 'getLocalAddress',
@@ -37,20 +43,20 @@ class ProtolParserTest extends TestCase {
             ->disableOriginalConstructor()
             ->getMock();
         
-        $parser = new \Plasma\Drivers\MySQL\ProtocolParser($driver, $connection);
+        $parser = new ProtocolParser($driver, $connection);
         
-        $max = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
+        $max = ProtocolParser::CLIENT_MAX_PACKET_SIZE;
         $data = \str_repeat('0', $max);
         
         $connection
-            ->expects($this->at(0))
+            ->expects(self::at(0))
             ->method('write')
-            ->with(\Plasma\BinaryBuffer::writeInt3($max).\Plasma\BinaryBuffer::writeInt1(0).$data);
+            ->with(BinaryBuffer::writeInt3($max).BinaryBuffer::writeInt1(0).$data);
         
         $connection
-            ->expects($this->at(1))
+            ->expects(self::at(1))
             ->method('write')
-            ->with(\Plasma\BinaryBuffer::writeInt3(0).\Plasma\BinaryBuffer::writeInt1(1));
+            ->with(BinaryBuffer::writeInt3(0).BinaryBuffer::writeInt1(1));
         
         $parser->sendPacket($data);
     }

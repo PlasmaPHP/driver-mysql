@@ -5,9 +5,12 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents an incoming message.
@@ -15,9 +18,9 @@ namespace Plasma\Drivers\MySQL\Messages;
 interface MessageInterface {
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser);
+    function __construct(ProtocolParser $parser);
     
     /**
      * Get the identifier for the packet.
@@ -28,17 +31,17 @@ interface MessageInterface {
     /**
      * Parses the message, once the complete string has been received.
      * Return false if not enough data has been received.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool;
+    function parseMessage(BinaryBuffer $buffer): bool;
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser;
+    function getParser(): ProtocolParser;
     
     /**
      * Sets the parser state, if necessary. If not, return `-1`.
