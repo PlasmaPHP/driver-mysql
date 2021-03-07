@@ -18,13 +18,13 @@ jobs:
     services:
       mysql:
         image: mysql:5.7
-        options: "--entrypoint \"docker-entrypoint.sh -- --socket=/var/run/mysqld/mysqld.sock\""
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: plasma_tmp
         ports:
           - 3306:3306
         volumes:
+          - my.cnf:/etc/mysql/conf.d/my.cnf
           - /var/run/mysqld:/var/run/mysqld
     steps:
       - uses: actions/checkout@v2
