@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  PHPUnit:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        php:
+          - 7.4
+          - 7.3
+          - 7.2
+          - 7.1
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: plasma_tmp
+        ports:
+          - 3306
+    steps:
+      - uses: actions/checkout@v2
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: xdebug
+      - run: composer install --no-interaction
+      - run: sudo sh ./setup_db.sh
+      - run: XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit.xml.dist --coverage-text --exclude-group tls
+      - run: mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
