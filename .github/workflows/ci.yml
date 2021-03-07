@@ -5,8 +5,8 @@ on:
   pull_request:
 
 jobs:
-  PHPUnit:
-    name: PHPUnit (PHP ${{ matrix.php }})
+  PHPUnit_MySQL:
+    name: PHPUnit (PHP ${{ matrix.php }}, MySQL ${{ matrix.mysql }})
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -15,16 +15,20 @@ jobs:
           - 7.3
           - 7.2
           - 7.1
+        mysql:
+          - 5.6
+          - 5.7
+          - 8.0
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: plasma_tmp
         ports:
           - 3306:3306
         volumes:
-          - my.cnf:/etc/mysql/conf.d/my.cnf
+          - ./my.cnf:/etc/mysql/conf.d/my.cnf
           - /var/run/mysqld:/var/run/mysqld
     steps:
       - uses: actions/checkout@v2
@@ -35,4 +39,39 @@ jobs:
       - run: composer install --no-interaction
       - run: sudo sh ./setup_db.sh
       - run: XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit.xml.dist --coverage-text --exclude-group tls
-      - run: mysql -e 'DROP DATABASE IF EXISTS plasma_tmp'
+  
+  PHPUnit_MariaDB:
+    name: PHPUnit (PHP ${{ matrix.php }}, MariaDB ${{ matrix.mariadb }})
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        php:
+          - 7.4
+          - 7.3
+          - 7.2
+          - 7.1
+        mariadb:
+          - 10.1
+          - 10.2
+          - 10.3
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: plasma_tmp
+        ports:
+          - 3306:3306
+        volumes:
+          - ./my.cnf:/etc/mysql/conf.d/my.cnf
+          - /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock
+    steps:
+      - uses: actions/checkout@v2
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: xdebug
+      - run: composer install --no-interaction
+      - run: sudo sh ./setup_db.sh
+      - run: XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit.xml.dist --coverage-text --exclude-group tls
+
