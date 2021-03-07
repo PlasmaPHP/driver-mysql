@@ -22,7 +22,7 @@ jobs:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: plasma_tmp
         ports:
-          - 3306
+          - 3306:3306
     steps:
       - uses: actions/checkout@v2
       - uses: shivammathur/setup-php@v2
