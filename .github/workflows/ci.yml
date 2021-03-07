@@ -23,6 +23,8 @@ jobs:
           MYSQL_DATABASE: plasma_tmp
         ports:
           - 3306:3306
+        volumes:
+          - /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock
     steps:
       - uses: actions/checkout@v2
       - uses: shivammathur/setup-php@v2
