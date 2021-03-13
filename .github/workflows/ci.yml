@@ -28,7 +28,8 @@ jobs:
         ports:
           - 3306:3306
         volumes:
-          - /var/run/mysqld:/tmp
+          - my.cnf:/etc/mysql/conf.d/my.cnf
+          - /var/run/mysqld:/var/run/mysqld
     steps:
       - uses: actions/checkout@v2
       - uses: shivammathur/setup-php@v2
@@ -62,7 +63,8 @@ jobs:
         ports:
           - 3306:3306
         volumes:
-          - /var/run/mysqld:/tmp
+          - my.cnf:/etc/mysql/conf.d/my.cnf
+          - /var/run/mysqld:/var/run/mysqld
     steps:
       - uses: actions/checkout@v2
       - uses: shivammathur/setup-php@v2
