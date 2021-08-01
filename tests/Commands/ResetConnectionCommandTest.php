@@ -5,29 +5,34 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Commands;
 
-class ResetConnectionCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\Drivers\MySQL\Commands\ResetConnectionCommand;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+use React\Promise\Deferred;
+
+class ResetConnectionCommandTest extends TestCase {
     function testGetEncodedMessage() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
-        $this->assertFalse($command->hasFinished());
+        $command = new ResetConnectionCommand();
+        self::assertFalse($command->hasFinished());
         
-        $this->assertSame("\x1F", $command->getEncodedMessage());
-        $this->assertTrue($command->hasFinished());
+        self::assertSame("\x1F", $command->getEncodedMessage());
+        self::assertTrue($command->hasFinished());
     }
     
     function testSetParserState() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new ResetConnectionCommand();
         
-        $this->assertSame(-1, $command->setParserState());
+        self::assertSame(-1, $command->setParserState());
     }
     
     function testOnComplete() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new ResetConnectionCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('end', function ($a = null) use (&$deferred) {
             $deferred->resolve($a);
@@ -36,13 +41,13 @@ class ResetConnectionCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
         $command->onComplete();
         
         $a = $this->await($deferred->promise(), 0.1);
-        $this->assertNull($a);
+        self::assertNull($a);
     }
     
     function testOnError() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
+        $command = new ResetConnectionCommand();
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $command->on('error', function (\Throwable $e) use (&$deferred) {
             $deferred->reject($e);
@@ -56,17 +61,19 @@ class ResetConnectionCommandTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
     }
     
     function testOnNext() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
-        $this->assertNull($command->onNext(null));
+        $command = new ResetConnectionCommand();
+        
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($command->onNext(null));
     }
     
     function testWaitForCompletion() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
-        $this->assertTrue($command->waitForCompletion());
+        $command = new ResetConnectionCommand();
+        self::assertTrue($command->waitForCompletion());
     }
     
     function testResetSequence() {
-        $command = new \Plasma\Drivers\MySQL\Commands\ResetConnectionCommand();
-        $this->assertTrue($command->resetSequence());
+        $command = new ResetConnectionCommand();
+        self::assertTrue($command->resetSequence());
     }
 }

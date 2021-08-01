@@ -5,13 +5,36 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests;
 
+use Plasma\ClientInterface;
+use Plasma\DriverInterface;
+use Plasma\Drivers\MySQL\Commands\PingCommand;
+use Plasma\Drivers\MySQL\Commands\QuitCommand;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\DriverFactory;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\StatementCursor;
+use Plasma\Exception;
+use Plasma\QueryBuilderInterface;
+use Plasma\QueryResultInterface;
+use Plasma\SQLQueryBuilderInterface;
+use Plasma\StatementInterface;
+use Plasma\StreamQueryResultInterface;
+use Plasma\TransactionInterface;
+use React\EventLoop\LoopInterface;
+use React\Promise\Deferred;
+use React\Promise\PromiseInterface;
+use function Clue\React\Block\sleep;
+use function React\Promise\all;
+use function React\Promise\Stream\first;
+
 class DriverTest extends TestCase {
     /**
-     * @var \Plasma\Drivers\MySQL\DriverFactory
+     * @var DriverFactory
      */
     public $factory;
     
@@ -21,10 +44,14 @@ class DriverTest extends TestCase {
         $connector = new \React\Socket\Connector($this->loop, array('tls' => array(
             'cafile' => '/var/lib/mysql/ca.pem'
         )));
-        $this->factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'connector' => $connector));
+        $this->factory = new DriverFactory($this->loop, array(
+            'compression.enable' => false,
+            'tls.force' => false,
+            'tls.forceLocal' => false
+        ));
     }
     
-    function connect(\Plasma\DriverInterface $driver, string $uri, string $scheme = 'tcp'): \React\Promise\PromiseInterface {
+    function connect(DriverInterface $driver, string $uri, string $scheme = 'tcp'): PromiseInterface {
         $creds = (\getenv('MDB_USER') ? \getenv('MDB_USER').':'.\getenv('MDB_PASSWORD').'@' : 'root:@');
         
         return $driver->connect($scheme.'://'.$creds.$uri);
@@ -32,55 +59,56 @@ class DriverTest extends TestCase {
     
     function testGetLoop() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $loop = $driver->getLoop();
-        $this->assertInstanceOf(\React\EventLoop\LoopInterface::class, $loop);
-        $this->assertSame($this->loop, $loop);
+        self::assertInstanceOf(LoopInterface::class, $loop);
+        self::assertSame($this->loop, $loop);
     }
     
     function testGetConnectionState() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $state = $driver->getConnectionState();
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_CLOSED, $state);
+        self::assertSame(DriverInterface::CONNECTION_CLOSED, $state);
     }
     
     function testGetBusyState() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $state = $driver->getBusyState();
-        $this->assertSame(\Plasma\DriverInterface::STATE_IDLE, $state);
+        self::assertSame(DriverInterface::STATE_IDLE, $state);
     }
     
     function testGetBacklogLength() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $state = $driver->getBacklogLength();
-        $this->assertSame(0, $state);
+        self::assertSame(0, $state);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->any())
+            ->expects(self::any())
             ->method('checkinConnection')
             ->with($driver);
         
-        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping = new PingCommand();
         $driver->runCommand($client, $ping);
         
         $state = $driver->getBacklogLength();
-        $this->assertSame(1, $state);
+        self::assertSame(1, $state);
     }
     
     function testConnect() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         $driver->on('eventRelay', function (string $event, $arg) use ($deferred) {
             if($event === 'serverOkMessage') {
                 $deferred->resolve($arg);
@@ -88,53 +116,54 @@ class DriverTest extends TestCase {
         });
         
         $prom = $this->connect($driver, 'localhost', 'mysql');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
         
         $prom2 = $this->connect($driver, 'localhost');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $msg = $this->await($deferred->promise(), 0.1);
-        $this->assertInstanceOf(\Plasma\Drivers\MySQL\Messages\OkResponseMessage::class, $msg);
+        self::assertInstanceOf(OkResponseMessage::class, $msg);
     }
     
     function testConnectWithPort() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $prom2 = $this->connect($driver, 'localhost');
-        $this->assertSame($prom, $prom2);
+        self::assertSame($prom, $prom2);
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
     function testConnectUnix() {
         if(\DIRECTORY_SEPARATOR === '\\') {
-            return $this->markTestSkipped('Not supported on windows');
+            /** @noinspection PhpVoidFunctionResultUsedInspection */
+            return self::markTestSkipped('Not supported on windows');
         }
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, '/var/run/mysqld/mysqld.sock/', 'unix');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertGreaterThanOrEqual(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertGreaterThanOrEqual(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
     function testConnectInvalidUnixHostWithoutUsername() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $this->expectException(\InvalidArgumentException::class);
         $driver->connect('unix://localhost');
@@ -142,13 +171,13 @@ class DriverTest extends TestCase {
     
     function testConnectInvalidCredentials() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $driver->connect('root:abc-never@localhost');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessageRegExp('/^Access denied for user/i');
         
         $this->await($prom);
@@ -156,7 +185,7 @@ class DriverTest extends TestCase {
     
     function testConnectInvalidHost() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $this->expectException(\InvalidArgumentException::class);
         $driver->connect('');
@@ -164,7 +193,7 @@ class DriverTest extends TestCase {
     
     function testConnectInvalidScheme() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $this->expectException(\InvalidArgumentException::class);
         $driver->connect('dns://localhost');
@@ -174,63 +203,63 @@ class DriverTest extends TestCase {
      * @group tls
      */
     function testConnectForceTLSLocalhost() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
     /**
      * @group tls
      */
     function testConnectForceTLSLocalhostIgnored() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
     /**
      * @group tls
      */
     function testConnectForceTLSIgnoredSecureServer() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true));
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT_SECURE') ?: (\getenv('MDB_PORT') ?: 3306)));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
     }
     
     /**
      * @group tls
      */
     function testConnectForceTLSFailure() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => false, 'tls.force' => true, 'tls.forceLocal' => true));
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('TLS is not supported by the server');
         
         $this->await($prom, 30.0);
@@ -238,11 +267,11 @@ class DriverTest extends TestCase {
     
     function testDriverCloseDuringMakingConnection() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $driver->connect('mysql://localhost');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($driver->close());
         
@@ -254,11 +283,11 @@ class DriverTest extends TestCase {
     
     function testDriverQuitDuringMakingConnection() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $driver->connect('mysql://localhost');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertInstanceOf(PromiseInterface::class, $prom);
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $driver->quit();
         
@@ -270,39 +299,40 @@ class DriverTest extends TestCase {
     
     function testClose() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, '127.0.0.1:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->exactly(2))
+            ->expects(self::exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
-        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping = new PingCommand();
         $driver->runCommand($client, $ping);
         
         $promC = $driver->runCommand($client, $ping);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
+        self::assertInstanceOf(PromiseInterface::class, $promC);
         
         $prom2 = $driver->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $this->await($promC);
         $this->await($prom2);
         
         $prom3 = $driver->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom3);
+        self::assertInstanceOf(PromiseInterface::class, $prom3);
     }
     
     function testQuit() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $driver->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -313,23 +343,26 @@ class DriverTest extends TestCase {
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->exactly(2))
+            ->expects(self::exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
-        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping = new PingCommand();
         $driver->runCommand($client, $ping);
         
         $promC = $driver->runCommand($client, $ping);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
+        self::assertInstanceOf(PromiseInterface::class, $promC);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
+        // Command gets rejected due to quit
         try {
-            $this->assertInstanceOf(\Throwable::class, $this->await($promC));
-        } catch (\Plasma\Exception $e) {
-            $this->assertInstanceOf(\Plasma\Exception::class, $e);
+            $this->await($promC);
+        } catch (\Throwable $e) {
+            self::assertInstanceOf(\Throwable::class, $e);
         }
         
         $this->await($deferred->promise());
@@ -337,83 +370,86 @@ class DriverTest extends TestCase {
     
     function testTransaction() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
-        $this->assertFalse($driver->isInTransaction());
+        self::assertFalse($driver->isInTransaction());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
-        $prom2 = $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        $prom2 = $driver->beginTransaction($client, TransactionInterface::ISOLATION_COMMITTED);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $transaction = $this->await($prom2);
-        $this->assertInstanceof(\Plasma\TransactionInterface::class, $transaction);
+        self::assertInstanceof(TransactionInterface::class, $transaction);
         
-        $this->assertTrue($driver->isInTransaction());
+        self::assertTrue($driver->isInTransaction());
         
         $prom3 = $transaction->rollback();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom3);
+        self::assertInstanceOf(PromiseInterface::class, $prom3);
         
         $this->await($prom3);
         
-        $this->assertFalse($driver->isInTransaction());
+        self::assertFalse($driver->isInTransaction());
     }
     
     function testAlreadyInTransaction() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
-        $this->assertFalse($driver->isInTransaction());
+        self::assertFalse($driver->isInTransaction());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->never())
+            ->expects(self::never())
             ->method('checkinConnection')
             ->with($driver);
         
-        $prom2 = $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        $prom2 = $driver->beginTransaction($client, TransactionInterface::ISOLATION_COMMITTED);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $transaction = $this->await($prom2);
-        $this->assertInstanceof(\Plasma\TransactionInterface::class, $transaction);
+        self::assertInstanceof(TransactionInterface::class, $transaction);
         
-        $this->expectException(\Plasma\Exception::class);
-        $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
+        $this->expectException(Exception::class);
+        $driver->beginTransaction($client, TransactionInterface::ISOLATION_COMMITTED);
     }
     
     function testRunCommand() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->exactly(2))
+            ->expects(self::exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
-        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping = new PingCommand();
         $promC = $driver->runCommand($client, $ping);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
+        self::assertInstanceOf(PromiseInterface::class, $promC);
         
         $this->await($promC);
         
-        $ping2 = (new class() extends \Plasma\Drivers\MySQL\Commands\PingCommand {
+        $ping2 = (new class() extends PingCommand {
             function onComplete(): void {
                 $this->finished = true;
                 $this->emit('error', array((new \LogicException('test'))));
@@ -421,7 +457,7 @@ class DriverTest extends TestCase {
         });
         
         $promC2 = $driver->runCommand($client, $ping2);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC2);
+        self::assertInstanceOf(PromiseInterface::class, $promC2);
         
         $this->expectException(\LogicException::class);
         $this->await($promC2);
@@ -429,29 +465,30 @@ class DriverTest extends TestCase {
     
     function testRunMultipleCommands() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->exactly(3))
+            ->expects(self::exactly(3))
             ->method('checkinConnection')
             ->with($driver);
         
-        $ping = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping = new PingCommand();
         $promC = $driver->runCommand($client, $ping);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC);
+        self::assertInstanceOf(PromiseInterface::class, $promC);
         
-        $ping2 = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping2 = new PingCommand();
         $promC2 = $driver->runCommand($client, $ping2);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC2);
+        self::assertInstanceOf(PromiseInterface::class, $promC2);
         
-        $ping3 = new \Plasma\Drivers\MySQL\Commands\PingCommand();
+        $ping3 = new PingCommand();
         $promC3 = $driver->runCommand($client, $ping3);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $promC3);
+        self::assertInstanceOf(PromiseInterface::class, $promC3);
         
         $resolval = array();
         
@@ -467,25 +504,25 @@ class DriverTest extends TestCase {
             $resolval[] = 2;
         });
         
-        $this->await(\React\Promise\all(array($promC, $promC2, $promC3)));
-        $this->assertSame(array(0, 1, 2), $resolval);
+        $this->await(all(array($promC, $promC2, $promC3)));
+        self::assertSame(array(0, 1, 2), $resolval);
     }
     
     function testRunQuery() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->any())
             ->method('checkinConnection')
             ->with($driver);
         
-        $query = $this->getMockBuilder(\Plasma\SQLQueryBuilderInterface::class)
+        $query = $this->getMockBuilder(SQLQueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
@@ -494,32 +531,32 @@ class DriverTest extends TestCase {
             ->getMock();
         
         $query
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('getQuery')
-            ->will($this->returnValue('SELECT 1'));
+            ->willReturn('SELECT 1');
         
         $query
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('getParameters')
-            ->will($this->returnValue(array()));
+            ->willReturn(array());
         
         $prom = $driver->runQuery($client, $query);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $result = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\QueryResultInterface::class, $result);
+        self::assertInstanceOf(QueryResultInterface::class, $result);
     }
     
     function testRunQueryInvalidBuilder() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306));
         $this->await($prom);
         
         $client = $this->createClientMock();
         
-        $query = $this->getMockBuilder(\Plasma\QueryBuilderInterface::class)
+        $query = $this->getMockBuilder(QueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
@@ -527,38 +564,39 @@ class DriverTest extends TestCase {
             ))
             ->getMock();
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $driver->runQuery($client, $query);
     }
     
     function testQuery() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/plasma_tmp');
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->exactly(2))
+            ->expects(self::exactly(2))
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'CREATE TABLE IF NOT EXISTS `tbl_tmp` (`test` VARCHAR(50) NOT NULL) ENGINE = InnoDB');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\QueryResultInterface::class, $res);
+        self::assertInstanceOf(QueryResultInterface::class, $res);
         
         $prom2 = $driver->query($client, 'SHOW DATABASES');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $res2 = $this->await($prom2);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res2);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res2);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res2->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -575,31 +613,32 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(array('Database' => 'plasma_tmp'), $data);
+        self::assertSame(array('Database' => 'plasma_tmp'), $data);
     }
     
     function testQuerySelectedDatabase() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'SELECT DATABASE()');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -614,36 +653,37 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(array('DATABASE()' => 'information_schema'), $data);
+        self::assertSame(array('DATABASE()' => 'information_schema'), $data);
     }
     
     function testQueryConnectionCharset() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.set' => 'utf8', 'compression.enable' => false));
+        $factory = new DriverFactory($this->loop, array('characters.set' => 'utf8', 'compression.enable' => false));
         
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "character\_set\_connection"');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -658,36 +698,37 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(array('Variable_name' => 'character_set_connection', 'Value' => 'utf8'), $data);
+        self::assertSame(array('Variable_name' => 'character_set_connection', 'Value' => 'utf8'), $data);
     }
     
     function testQueryConnectionCollate() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('characters.collate' => 'utf8mb4_bin', 'compression.enable' => false));
+        $factory = new DriverFactory($this->loop, array('characters.collate' => 'utf8mb4_bin', 'compression.enable' => false));
         
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "collation\_connection"');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -702,36 +743,37 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(array('Variable_name' => 'collation_connection', 'Value' => 'utf8mb4_bin'), $data);
+        self::assertSame(array('Variable_name' => 'collation_connection', 'Value' => 'utf8mb4_bin'), $data);
     }
     
     function testQueryCompressionEnabledPassthrough() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => true));
         
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'SELECT 1');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = array();
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -746,36 +788,37 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertSame(1, \count($data));
+        self::assertCount(1, $data);
     }
     
     function testQueryCompressionEnabled() {
-        $factory = new \Plasma\Drivers\MySQL\DriverFactory($this->loop, array('compression.enable' => true));
+        $factory = new DriverFactory($this->loop, array('compression.enable' => true));
         
         $driver = $factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_STARTED, $driver->getConnectionState());
         
         $this->await($prom);
-        $this->assertSame(\Plasma\DriverInterface::CONNECTION_OK, $driver->getConnectionState());
+        self::assertSame(DriverInterface::CONNECTION_OK, $driver->getConnectionState());
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->query($client, 'SHOW SESSION VARIABLES LIKE "%\_connection%"  -- WE NEED MORE BYTES');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = array();
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -790,37 +833,38 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertGreaterThanOrEqual(1, \count($data));
+        self::assertGreaterThanOrEqual(1, \count($data));
     }
     
     function testPrepare() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->prepare($client, 'SELECT * FROM `SCHEMATA` WHERE `SCHEMA_NAME` = ?');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $statement = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StatementInterface::class, $statement);
+        self::assertInstanceOf(StatementInterface::class, $statement);
         
         $prom2 = $statement->execute(array('plasma_tmp'));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom2);
+        self::assertInstanceOf(PromiseInterface::class, $prom2);
         
         $res = $this->await($prom2);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -837,7 +881,7 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertNotNull($data);
+        self::assertNotNull($data);
         
         $this->await($statement->close());
         
@@ -848,26 +892,27 @@ class DriverTest extends TestCase {
     
     function testExecute() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost:'.(\getenv('MDB_PORT') ?: 3306).'/information_schema');
         $this->await($prom);
         
         $client = $this->createClientMock();
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $prom = $driver->execute($client, 'SELECT * FROM `SCHEMATA` WHERE `SCHEMA_NAME` = ?', array('plasma_tmp'));
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
         $res = $this->await($prom);
-        $this->assertInstanceOf(\Plasma\StreamQueryResultInterface::class, $res);
+        self::assertInstanceOf(StreamQueryResultInterface::class, $res);
         
         $data = null;
-        $deferred = new \React\Promise\Deferred();
+        $deferred = new Deferred();
         
         $res->once('close', function () use (&$deferred) {
             $deferred->resolve();
@@ -884,10 +929,10 @@ class DriverTest extends TestCase {
         });
         
         $this->await($deferred->promise());
-        $this->assertNotNull($data);
+        self::assertNotNull($data);
         
         // Waiting 2 seconds for the automatic close to occurr
-        $deferredT = new \React\Promise\Deferred();
+        $deferredT = new Deferred();
         $this->loop->addTimer(2, array($deferredT, 'resolve'));
         
         $this->await($deferredT->promise());
@@ -895,14 +940,15 @@ class DriverTest extends TestCase {
     
     function testGoingAwayConnect() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
         $connect = $driver->connect('whatever');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $connect);
+        self::assertInstanceOf(PromiseInterface::class, $connect);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($connect, 0.1);
@@ -910,35 +956,41 @@ class DriverTest extends TestCase {
     
     function testGoingAwayClose() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
         $close = $driver->close();
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $close);
+        self::assertInstanceOf(PromiseInterface::class, $close);
         
         $this->await($close, 0.1);
     }
     
     function testGoingAwayQuit() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
+    
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
-        $this->assertNull($driver->quit());
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
     }
     
     function testGoingAwayQuery() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
+        
         $client = $this->createClientMock();
         
         $query = $driver->query($client, 'whatever');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        self::assertInstanceOf(PromiseInterface::class, $query);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($query, 0.1);
@@ -946,15 +998,17 @@ class DriverTest extends TestCase {
     
     function testGoingAwayPrepare() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
+        
         $client = $this->createClientMock();
         
         $query = $driver->prepare($client, 'whatever');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        self::assertInstanceOf(PromiseInterface::class, $query);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($query, 0.1);
@@ -962,15 +1016,16 @@ class DriverTest extends TestCase {
     
     function testGoingAwayExecute() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         $client = $this->createClientMock();
         
         $query = $driver->execute($client, 'whatever');
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        self::assertInstanceOf(PromiseInterface::class, $query);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($query, 0.1);
@@ -978,15 +1033,17 @@ class DriverTest extends TestCase {
     
     function testGoingAwayBeginTransaction() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
+        
         $client = $this->createClientMock();
         
-        $query = $driver->beginTransaction($client, \Plasma\TransactionInterface::ISOLATION_COMMITTED);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $query);
+        $query = $driver->beginTransaction($client, TransactionInterface::ISOLATION_COMMITTED);
+        self::assertInstanceOf(PromiseInterface::class, $query);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($query, 0.1);
@@ -994,17 +1051,18 @@ class DriverTest extends TestCase {
     
     function testGoingAwayRunCommand() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
-        $cmd = new \Plasma\Drivers\MySQL\Commands\QuitCommand();
+        $cmd = new QuitCommand();
         $client = $this->createClientMock();
         
         $command = $driver->runCommand($client, $cmd);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $command);
+        self::assertInstanceOf(PromiseInterface::class, $command);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($command, 0.1);
@@ -1012,13 +1070,14 @@ class DriverTest extends TestCase {
     
     function testGoingAwayRunQuery() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->assertNull($driver->quit());
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
+        self::assertNull($driver->quit());
         
         $client = $this->createClientMock();
         
-        $query = $this->getMockBuilder(\Plasma\QueryBuilderInterface::class)
+        $query = $this->getMockBuilder(QueryBuilderInterface::class)
             ->setMethods(array(
                 'create',
                 'getQuery',
@@ -1027,9 +1086,9 @@ class DriverTest extends TestCase {
             ->getMock();
         
         $prom = $driver->runQuery($client, $query);
-        $this->assertInstanceOf(\React\Promise\PromiseInterface::class, $prom);
+        self::assertInstanceOf(PromiseInterface::class, $prom);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Connection is going away');
         
         $this->await($prom, 0.1);
@@ -1037,60 +1096,60 @@ class DriverTest extends TestCase {
     
     function testUnconnectedQuery() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
-        $query = $driver->query($client, 'whatever');
+        $driver->query($client, 'whatever');
     }
     
     function testUnconnectedPrepare() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
-        $query = $driver->prepare($client, 'whatever');
+        $driver->prepare($client, 'whatever');
     }
     
     function testUnconnectedExecute() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Unable to continue without connection');
         
         $client = $this->createClientMock();
-        $query = $driver->execute($client, 'whatever');
+        $driver->execute($client, 'whatever');
     }
     
     function testQuote() {
-        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        $driver = new Driver($this->loop, array('characters.set' => ''));
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
         $this->await($prom);
         
         $str = $driver->quote('hello "world"');
-        $this->assertContains($str, array(
+        self::assertContains($str, array(
             '"hello \"world\""',
             '"hello ""world"""'
         ));
     }
     
     function testQuoteIdentifier() {
-        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        $driver = new Driver($this->loop, array('characters.set' => ''));
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
         $this->await($prom);
         
-        $str = $driver->quote('hello `world`', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
-        $this->assertContains($str, array(
+        $str = $driver->quote('hello `world`', DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        self::assertContains($str, array(
             '`hello \`world\``',
             '`hello ``world```'
         ));
@@ -1098,13 +1157,13 @@ class DriverTest extends TestCase {
     
     function testQuoteWithOkResponse() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
         $this->await($prom);
         
         $str = $driver->quote('hello "world"');
-        $this->assertContains($str, array(
+        self::assertContains($str, array(
             '"hello \"world\""',
             '"hello ""world"""'
         ));
@@ -1112,58 +1171,58 @@ class DriverTest extends TestCase {
     
     function testQuoteWithOkResponseIdentifier() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost');
         $this->await($prom);
         
-        $str = $driver->quote('hello `world`', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
-        $this->assertContains($str, array(
+        $str = $driver->quote('hello `world`', DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        self::assertContains($str, array(
             '`hello \`world\``',
             '`hello ``world```'
         ));
     }
     
     function testQuoteWithoutConnection() {
-        $driver = new \Plasma\Drivers\MySQL\Driver($this->loop, array('characters.set' => ''));
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        $driver = new Driver($this->loop, array('characters.set' => ''));
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Unable to continue without connection');
         
-        $str = $driver->quote('hello "world"');
+        $driver->quote('hello "world"');
     }
     
     function testQuoteQuotes() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingQuotes('UTF-8', 'hello "world"', \Plasma\DriverInterface::QUOTE_TYPE_VALUE);
-        $this->assertSame('"hello ""world"""', $str);
+        $str = $driver->escapeUsingQuotes('UTF-8', 'hello "world"', DriverInterface::QUOTE_TYPE_VALUE);
+        self::assertSame('"hello ""world"""', $str);
     }
     
     function testQuoteBackslashes() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello "world"', \Plasma\DriverInterface::QUOTE_TYPE_VALUE);
-        $this->assertSame('"hello \"world\""', $str);
+        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello "world"', DriverInterface::QUOTE_TYPE_VALUE);
+        self::assertSame('"hello \"world\""', $str);
     }
     
     function testQuoteIdentifierQuotes() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingQuotes('UTF-8', 'hello`_world', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
-        $this->assertSame('`hello``_world`', $str);
+        $str = $driver->escapeUsingQuotes('UTF-8', 'hello`_world', DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        self::assertSame('`hello``_world`', $str);
     }
     
     function testQuoteIdentifierBackslashes() {
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
-        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello`_world', \Plasma\DriverInterface::QUOTE_TYPE_IDENTIFIER);
-        $this->assertSame('`hello\`_world`', $str);
+        $str = $driver->escapeUsingBackslashes('UTF-8', 'hello`_world', DriverInterface::QUOTE_TYPE_IDENTIFIER);
+        self::assertSame('`hello\`_world`', $str);
     }
     
     function testTextTypeString() {
@@ -1176,7 +1235,7 @@ class DriverTest extends TestCase {
         $values[1] = '"hello_world"';
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1188,17 +1247,17 @@ class DriverTest extends TestCase {
         $prep = $driver->query($client, 'INSERT INTO `test_strings` VALUES ('.\implode(', ', $values).')');
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->query($client, 'SELECT * FROM `test_strings`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_strings`'));
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => 'hello_world',
             'testcol3' => '',
@@ -1224,7 +1283,7 @@ class DriverTest extends TestCase {
         $values = array(0, 0, 0, 2780, 0, 0);
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1236,17 +1295,17 @@ class DriverTest extends TestCase {
         $prep = $driver->query($client, 'INSERT INTO `test_ints` VALUES ('.\implode(', ', $values).')');
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->query($client, 'SELECT * FROM `test_ints`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -1260,7 +1319,7 @@ class DriverTest extends TestCase {
         $values = array(0.9, 4.3);
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1272,12 +1331,12 @@ class DriverTest extends TestCase {
         $prep = $driver->query($client, 'INSERT INTO `test_floats` VALUES ('.\implode(', ', $values).')');
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->query($client, 'SELECT * FROM `test_floats`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_floats`'));
@@ -1285,7 +1344,7 @@ class DriverTest extends TestCase {
         // Round single precision float to 1 decimal
         $data['testcol1'] = \round($data['testcol1'], 1);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => 0.9,
             'testcol2' => 4.3
         ), $data);
@@ -1295,7 +1354,7 @@ class DriverTest extends TestCase {
         $values = array('"2011-03-05"', '"2011-03-05 00:00:00"', '"23:41:03"', 'null');
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1307,12 +1366,12 @@ class DriverTest extends TestCase {
         $prep = $driver->query($client, 'INSERT INTO `test_dates` VALUES ('.\implode(', ', $values).')');
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->query($client, 'SELECT * FROM `test_dates`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_dates`'));
@@ -1321,15 +1380,15 @@ class DriverTest extends TestCase {
         $ts = \DateTime::createFromFormat('Y-m-d H:i:s', $data['testcol4'])->getTimestamp();
         unset($data['testcol4']);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '2011-03-05',
             'testcol2' => '2011-03-05 00:00:00',
             'testcol3' => '23:41:03'
         ), $data);
         
         // We're happy if we're +/- 1 minute correct
-        $this->assertLessThanOrEqual(($timestamp + 60), $ts);
-        $this->assertGreaterThanOrEqual(($timestamp - 60), $ts);
+        self::assertLessThanOrEqual(($timestamp + 60), $ts);
+        self::assertGreaterThanOrEqual(($timestamp - 60), $ts);
     }
     
     function testUnsupportedTypeForBindingParameters() {
@@ -1342,7 +1401,7 @@ class DriverTest extends TestCase {
         $values[0] = array('hello', 'world');
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1357,16 +1416,16 @@ class DriverTest extends TestCase {
             $values
         );
         
-        $this->expectException(\Plasma\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Unexpected type for binding parameter: array');
         
         $this->await($prep);
     }
     
     function testReadCursor() {
-        /** @var \Plasma\Drivers\MySQL\Driver  $driver */
+        /** @var Driver  $driver */
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1374,7 +1433,7 @@ class DriverTest extends TestCase {
         $client = $this->createClientMock();
         
         if(\getenv('SCRUTINIZER') || \getenv('TRAVIS')) {
-            $this->assertTrue($driver->supportsCursors());
+            self::assertTrue($driver->supportsCursors());
         }
         
         if(!$driver->supportsCursors()) {
@@ -1382,32 +1441,33 @@ class DriverTest extends TestCase {
         }
         
         $cursor = $this->await($driver->createReadCursor($client, 'SELECT * FROM test_cursors'));
-        $this->assertInstanceOf(\Plasma\Drivers\MySQL\StatementCursor::class, $cursor);
+        self::assertInstanceOf(StatementCursor::class, $cursor);
         
+        /** @noinspection PhpUndefinedMethodInspection */
         $client
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('checkinConnection')
             ->with($driver);
         
         $row = $this->await($cursor->fetch());
-        $this->assertSame(array('testcol' => 'HELLO'), $row);
+        self::assertSame(array('testcol' => 'HELLO'), $row);
         
         $row2 = $this->await($cursor->fetch());
-        $this->assertSame(array('testcol' => 'WORLD'), $row2);
+        self::assertSame(array('testcol' => 'WORLD'), $row2);
         
         $row3_4 = $this->await($cursor->fetch(2));
-        $this->assertSame(array(
+        self::assertSame(array(
             array('testcol' => 'PLASMA'),
             array('testcol' => 'IN')
         ), $row3_4);
         
         $row5 = $this->await($cursor->fetch());
-        $this->assertSame(array('testcol' => 'ACTION'), $row5);
+        self::assertSame(array('testcol' => 'ACTION'), $row5);
         
         $falsy = $this->await($cursor->fetch());
-        $this->assertFalse($falsy);
+        self::assertFalse($falsy);
         
-        \Clue\React\Block\sleep(0.1, $this->loop);
+        sleep(0.1, $this->loop);
     }
     
     function insertIntoTestString(int $colnum, string $value): array {
@@ -1422,7 +1482,7 @@ class DriverTest extends TestCase {
         }
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1438,12 +1498,12 @@ class DriverTest extends TestCase {
         );
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->execute($client, 'SELECT * FROM `test_strings`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_strings`'));
@@ -1453,7 +1513,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeChar() {
         $data = $this->insertIntoTestString(0, 'hell');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => 'hell',
             'testcol2' => '',
             'testcol3' => '',
@@ -1478,7 +1538,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeVarchar() {
         $data = $this->insertIntoTestString(1, 'hello');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => 'hello',
             'testcol3' => '',
@@ -1503,7 +1563,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeTinyText() {
         $data = $this->insertIntoTestString(2, 'hallo');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => 'hallo',
@@ -1528,7 +1588,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeText() {
         $data = $this->insertIntoTestString(3, 'hallo2');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1553,7 +1613,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeMediumText() {
         $data = $this->insertIntoTestString(4, 'hallo3');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1578,7 +1638,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeLongText() {
         $data = $this->insertIntoTestString(5, 'hallo4');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1603,7 +1663,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeBinary() {
         $data = $this->insertIntoTestString(6, "\1\1\0");
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1628,7 +1688,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeVarBinary() {
         $data = $this->insertIntoTestString(7, 'hallo6');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1653,7 +1713,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeTinyBlob() {
         $data = $this->insertIntoTestString(8, 'hallo7');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1678,7 +1738,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeMediumBlob() {
         $data = $this->insertIntoTestString(9, 'hallo8');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1703,7 +1763,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeBlob() {
         $data = $this->insertIntoTestString(10, 'hallo9');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1728,7 +1788,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeLongBlob() {
         $data = $this->insertIntoTestString(11, 'hello world');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1753,7 +1813,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeEnum() {
         $data = $this->insertIntoTestString(12, 'hey');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1778,7 +1838,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeSet() {
         $data = $this->insertIntoTestString(13, 'world');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1829,7 +1889,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeBit() {
         $data = $this->insertIntoTestString(15, "\1");
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1854,7 +1914,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeDecimal() {
         $data = $this->insertIntoTestString(16, '5.2');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '',
             'testcol2' => '',
             'testcol3' => '',
@@ -1914,7 +1974,7 @@ class DriverTest extends TestCase {
         }
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1930,12 +1990,12 @@ class DriverTest extends TestCase {
         );
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
@@ -1946,7 +2006,7 @@ class DriverTest extends TestCase {
         $values = array(true, 0, 0, 0, 0, 0);
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -1962,17 +2022,17 @@ class DriverTest extends TestCase {
         );
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->execute($client, 'SELECT * FROM `test_ints`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_ints`'));
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00001',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -1985,7 +2045,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeTiny() {
         $data = $this->insertIntoTestInt(0, 5);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00005',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -1998,7 +2058,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeShort() {
         $data = $this->insertIntoTestInt(1, 32040);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 32040,
             'testcol3' => '0000',
@@ -2011,7 +2071,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeYear() {
         $data = $this->insertIntoTestInt(2, 2014);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 0,
             'testcol3' => '2014',
@@ -2024,7 +2084,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeInt24() {
         $data = $this->insertIntoTestInt(3, 1677416);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -2037,7 +2097,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeLong() {
         $data = $this->insertIntoTestInt(4, 1147283648);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -2050,7 +2110,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeLongLong() {
         $data = $this->insertIntoTestInt(5, 261168601842738);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '00000',
             'testcol2' => 0,
             'testcol3' => '0000',
@@ -2072,7 +2132,7 @@ class DriverTest extends TestCase {
         }
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -2088,12 +2148,12 @@ class DriverTest extends TestCase {
         );
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->execute($client, 'SELECT * FROM `test_floats`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_floats`'));
@@ -2102,12 +2162,12 @@ class DriverTest extends TestCase {
     
     function testBinaryTypeFloat() {
         $data = $this->insertIntoTestFloat(0, 5.2);
-        $this->assertSame(5.2, \round($data['testcol1'], 1));
+        self::assertSame(5.2, \round($data['testcol1'], 1));
     }
     
     function testBinaryTypeDouble() {
         $data = $this->insertIntoTestFloat(1, 25.2543543143);
-        $this->assertSame(25.25, \round($data['testcol2'], 2));
+        self::assertSame(25.25, \round($data['testcol2'], 2));
     }
     
     function insertIntoTestDate(int $colnum, $value): array {
@@ -2122,7 +2182,7 @@ class DriverTest extends TestCase {
         }
         
         $driver = $this->factory->createDriver();
-        $this->assertInstanceOf(\Plasma\DriverInterface::class, $driver);
+        self::assertInstanceOf(DriverInterface::class, $driver);
         
         $prom = $this->connect($driver, 'localhost/plasma_tmp');
         $this->await($prom);
@@ -2138,12 +2198,12 @@ class DriverTest extends TestCase {
         );
         $result = $this->await($prep);
         
-        $this->assertSame(1, $result->getAffectedRows());
+        self::assertSame(1, $result->getAffectedRows());
         
         $selprep = $driver->execute($client, 'SELECT * FROM `test_dates`');
         $select = $this->await($selprep);
         
-        $dataProm = \React\Promise\Stream\first($select);
+        $dataProm = first($select);
         $data = $this->await($dataProm);
         
         $this->await($driver->query($client, 'TRUNCATE TABLE `test_dates`'));
@@ -2153,7 +2213,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeDate() {
         $data = $this->insertIntoTestDate(0, '2011-03-05');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '2011-03-05',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00',
@@ -2164,7 +2224,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeDateZero() {
         $data = $this->insertIntoTestDate(0, '0000-00-00');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00',
@@ -2175,7 +2235,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeDateTime() {
         $data = $this->insertIntoTestDate(1, '2011-03-05 00:00:00.000 000');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '2011-03-05 00:00:00',
             'testcol3' => '0d 00:00:00',
@@ -2198,7 +2258,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeDateTimeZeroed() {
         $data = $this->insertIntoTestDate(1, '0000-00-00 00:00:00.000 000');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00',
@@ -2209,7 +2269,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeTime() {
         $data = $this->insertIntoTestDate(2, '23:41:03.000 000');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 23:41:03',
@@ -2232,7 +2292,7 @@ class DriverTest extends TestCase {
     function testBinaryTypeTimeZeroed() {
         $data = $this->insertIntoTestDate(2, '0d 00:00:00');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00',
@@ -2249,21 +2309,21 @@ class DriverTest extends TestCase {
         $ts = $data['testcol4'];
         unset($data['testcol4']);
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00'
         ), $data);
         
         // We're happy if we're +/- 1 minute correct
-        $this->assertLessThanOrEqual(($timestamp + 60), $ts);
-        $this->assertGreaterThanOrEqual(($timestamp - 60), $ts);
+        self::assertLessThanOrEqual(($timestamp + 60), $ts);
+        self::assertGreaterThanOrEqual(($timestamp - 60), $ts);
     }
     
     function testBinaryTypeTimestampZeroed() {
         $data = $this->insertIntoTestDate(3, '0000-00-00 00:00:00');
         
-        $this->assertSame(array(
+        self::assertSame(array(
             'testcol1' => '0000-00-00',
             'testcol2' => '0000-00-00 00:00:00.000 000',
             'testcol3' => '0d 00:00:00',
@@ -2271,8 +2331,8 @@ class DriverTest extends TestCase {
         ), $data);
     }
     
-    function createClientMock(): \Plasma\ClientInterface {
-        return $this->getMockBuilder(\Plasma\ClientInterface::class)
+    function createClientMock(): ClientInterface {
+        return $this->getMockBuilder(ClientInterface::class)
             ->setMethods(array(
                 'create',
                 'getConnectionCount',

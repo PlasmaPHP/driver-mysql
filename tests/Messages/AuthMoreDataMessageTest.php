@@ -5,49 +5,57 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests\Messages;
 
-class AuthMoreDataMessageTest extends \Plasma\Drivers\MySQL\Tests\TestCase {
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Drivers\MySQL\Tests\TestCase;
+
+class AuthMoreDataMessageTest extends TestCase {
     function testGetID() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
-        $this->assertSame("\x01", $message->getID());
+        $message = new AuthMoreDataMessage($parser);
+        
+        /** @noinspection StaticInvocationViaThisInspection */
+        self::assertSame("\x01", $message->getID());
     }
     
     function testParseMessage() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
+        $message = new AuthMoreDataMessage($parser);
         
-        $buffer = new \Plasma\BinaryBuffer();
+        $buffer = new BinaryBuffer();
         $buffer->append(__FILE__);
         
-        $this->assertTrue($message->parseMessage($buffer));
-        $this->assertSame(__FILE__, $message->authPluginData);
+        self::assertTrue($message->parseMessage($buffer));
+        self::assertSame(__FILE__, $message->authPluginData);
     }
     
     function testGetParser() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
-        $this->assertSame($parser, $message->getParser());
+        $message = new AuthMoreDataMessage($parser);
+        self::assertSame($parser, $message->getParser());
     }
     
     function testSetParserState() {
-        $parser = $this->getMockBuilder(\Plasma\Drivers\MySQL\ProtocolParser::class)
+        $parser = $this->getMockBuilder(ProtocolParser::class)
             ->disableOriginalConstructor()
             ->getMock();
         
-        $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($parser);
-        $this->assertSame(\Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH, $message->setParserState());
+        $message = new AuthMoreDataMessage($parser);
+        self::assertSame(ProtocolParser::STATE_AUTH, $message->setParserState());
     }
 }

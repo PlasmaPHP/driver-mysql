@@ -5,9 +5,13 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Plasma\BinaryBuffer;
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Exception;
 
 /**
  * Binary protocol rowset values decoder and encoder.
@@ -18,14 +22,14 @@ class BinaryProtocolValues {
      * Standard encode value, if type extensions failed.
      * @param mixed  $param
      * @return array
-     * @throws \Plasma\Exception
+     * @throws Exception
      */
     static function encode($param): array {
         $unsigned = false;
         
         switch(\gettype($param)) {
             case 'boolean':
-                $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_TINY;
+                $type = FieldFlags::FIELD_TYPE_TINY;
                 $value = ($param ? "\x01" : "\0");
             break;
             case 'integer':
@@ -34,31 +38,30 @@ class BinaryProtocolValues {
                 }
                 
                 if($param >= 0 && $param < (1 << 15)) {
-                    $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_SHORT;
-                    $value = \Plasma\BinaryBuffer::writeInt2($param);
+                    $type = FieldFlags::FIELD_TYPE_SHORT;
+                    $value = BinaryBuffer::writeInt2($param);
                 } elseif(\PHP_INT_SIZE === 4) {
-                    $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG;
-                    $value = \Plasma\BinaryBuffer::writeInt4($param);
+                    $type = FieldFlags::FIELD_TYPE_LONG;
+                    $value = BinaryBuffer::writeInt4($param);
                 } else {
-                    $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONGLONG;
-                    $value = \Plasma\BinaryBuffer::writeInt8($param);
+                    $type = FieldFlags::FIELD_TYPE_LONGLONG;
+                    $value = BinaryBuffer::writeInt8($param);
                 }
             break;
             case 'double':
-                $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_DOUBLE;
-                $value = \Plasma\BinaryBuffer::writeDouble($param);
+                $type = FieldFlags::FIELD_TYPE_DOUBLE;
+                $value = BinaryBuffer::writeDouble($param);
             break;
             case 'string':
-                $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_LONG_BLOB;
-                $value = \Plasma\BinaryBuffer::writeStringLength($param);
+                $type = FieldFlags::FIELD_TYPE_LONG_BLOB;
+                $value = BinaryBuffer::writeStringLength($param);
             break;
             case 'NULL':
-                $type = \Plasma\Drivers\MySQL\FieldFlags::FIELD_TYPE_NULL;
+                $type = FieldFlags::FIELD_TYPE_NULL;
                 $value = '';
             break;
             default:
-                throw new \Plasma\Exception('Unexpected type for binding parameter: '.\gettype($param));
-            break;
+                throw new Exception('Unexpected type for binding parameter: '.\gettype($param));
         }
         
         return array($unsigned, $type, $value);
@@ -66,12 +69,12 @@ class BinaryProtocolValues {
     
     /**
      * Standard decode value, if type extensions failed.
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param \Plasma\BinaryBuffer               $buffer
+     * @param ColumnDefinitionInterface  $column
+     * @param BinaryBuffer               $buffer
      * @return mixed
-     * @throws \Plasma\Exception
+     * @throws Exception
      */
-    static function decode(\Plasma\ColumnDefinitionInterface $column, \Plasma\BinaryBuffer $buffer) {
+    static function decode(ColumnDefinitionInterface $column, BinaryBuffer $buffer) {
         $flags = $column->getFlags();
         $type = $column->getType();
         
@@ -90,7 +93,7 @@ class BinaryProtocolValues {
             case static::isTypeInt24orLong($type):
                 $value = $buffer->readInt4();
                 
-                if($column->isUnsigned() && \PHP_INT_SIZE <= 4) {
+                if(\PHP_INT_SIZE <= 4 && $column->isUnsigned()) {
                     $value = \bcadd($value, '18446744073709551616');
                 }
                 
@@ -132,8 +135,7 @@ class BinaryProtocolValues {
                 $value = static::parseTime($buffer);
             break;
             default:
-                throw new \Plasma\Exception('Unknown column type (flags: '.$flags.', type: '.$type.')');
-            break;
+                throw new Exception('Unknown column type (flags: '.$flags.', type: '.$type.')');
         }
         
         return $value;
@@ -145,9 +147,20 @@ class BinaryProtocolValues {
      */
     static function isTypeString(string $type): bool {
         $types = array(
-            'STRING', 'VARCHAR', 'VARSTRING', 'ENUM', 'SET', 'LONGBLOB',
-            'MEDIUMBLOB', 'BLOB', 'TINYBLOB', 'GEMOTERY', 'BIT', 'DECIMAL',
-            'NEWDECIMAL', 'JSON'
+            'STRING',
+            'VARCHAR',
+            'VARSTRING',
+            'ENUM',
+            'SET',
+            'LONGBLOB',
+            'MEDIUMBLOB',
+            'BLOB',
+            'TINYBLOB',
+            'GEMOTERY',
+            'BIT',
+            'DECIMAL',
+            'NEWDECIMAL',
+            'JSON'
         );
         
         return \in_array($type, $types, true);
@@ -191,11 +204,11 @@ class BinaryProtocolValues {
     
     /**
      * Parses a DATETIME or TIMESTAMP value.
-     * @param string                $type
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param string        $type
+     * @param BinaryBuffer  $buffer
      * @return mixed
      */
-    static function parseDateTime(string $type, \Plasma\BinaryBuffer $buffer) {
+    static function parseDateTime(string $type, BinaryBuffer $buffer): string {
         $length = $buffer->readIntLength();
         if($length > 0) {
             $year = $buffer->readInt2();
@@ -235,10 +248,10 @@ class BinaryProtocolValues {
     
     /**
      * Parses a TIME value.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return mixed
      */
-    static function parseTime(\Plasma\BinaryBuffer $buffer) {
+    static function parseTime(BinaryBuffer $buffer) {
         $length = $buffer->readIntLength();
         if($length > 1) {
             $sign = $buffer->readInt1();
@@ -270,11 +283,11 @@ class BinaryProtocolValues {
     }
     
     /**
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param string|int                         $value
+     * @param ColumnDefinitionInterface  $column
+     * @param mixed                      $value
      * @return string|int
      */
-    static function zeroFillInts(\Plasma\ColumnDefinitionInterface $column, $value) {
+    static function zeroFillInts(ColumnDefinitionInterface $column, $value) {
         if($column->isZerofilled()) {
             $value = \str_pad(((string) $value), $column->getLength(), '0', \STR_PAD_LEFT);
         }

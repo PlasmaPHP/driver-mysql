@@ -5,14 +5,17 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents an EOF Message.
  */
-class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class EOFMessage implements MessageInterface {
     /**
      * The server status flags.
      * @var int
@@ -27,17 +30,17 @@ class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     public $warningsCount;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -53,15 +56,15 @@ class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+    function parseMessage(BinaryBuffer $buffer): bool {
         $handshake = $this->parser->getHandshakeMessage();
         if(!$handshake) {
-            throw new \Plasma\Drivers\MySQL\Messages\ParseException('No handshake message when receiving ok response packet');
+            throw new ParseException('No handshake message when receiving ok response packet');
         }
         
         $this->statusFlags = $buffer->readInt2();
@@ -72,10 +75,10 @@ class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -85,6 +88,6 @@ class EOFMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
      * @internal
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
+        return ProtocolParser::STATE_OK;
     }
 }

@@ -5,24 +5,29 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
+use Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Handshake Response command.
  * @internal
  */
 class HandshakeResponseCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      */
     protected $parser;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\HandshakeMessage
+     * @var HandshakeMessage
      */
     protected $handshake;
     
@@ -58,17 +63,22 @@ class HandshakeResponseCommand implements CommandInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser             $parser
-     * @param \Plasma\Drivers\MySQL\Messages\HandshakeMessage  $handshake
-     * @param int                                              $capability
-     * @param string|null                                      $plugin
-     * @param string                                           $user
-     * @param string                                           $password
-     * @param string                                           $database
+     * @param ProtocolParser    $parser
+     * @param HandshakeMessage  $handshake
+     * @param int               $capability
+     * @param string|null       $plugin
+     * @param string            $user
+     * @param string            $password
+     * @param string            $database
      */
     function __construct(
-        \Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake,
-        int $capability, ?string $plugin, string $user, string $password, string $database
+        ProtocolParser $parser,
+        HandshakeMessage $handshake,
+        int $capability,
+        ?string $plugin,
+        string $user,
+        string $password,
+        string $database
     ) {
         $this->parser = $parser;
         $this->handshake = $handshake;
@@ -85,8 +95,8 @@ class HandshakeResponseCommand implements CommandInterface {
      * @return string
      */
     function getEncodedMessage(): string {
-        $maxPacketSize = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_MAX_PACKET_SIZE;
-        $charsetNumber = \Plasma\Drivers\MySQL\ProtocolParser::CLIENT_CHARSET_NUMBER;
+        $maxPacketSize = ProtocolParser::CLIENT_MAX_PACKET_SIZE;
+        $charsetNumber = ProtocolParser::CLIENT_CHARSET_NUMBER;
         
         $packet = \pack('VVc', $this->capability, $maxPacketSize, $charsetNumber);
         $packet .= \str_repeat("\x00", 23);
@@ -95,7 +105,7 @@ class HandshakeResponseCommand implements CommandInterface {
         if($this->plugin !== null) {
             $plug = $this->plugin;
             
-            /** @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface  $auth */
+            /** @var AuthPluginInterface $auth */
             $auth = new $plug($this->parser, $this->handshake);
             
             $packet .= $auth->getHandshakeAuth($this->password);
@@ -118,7 +128,7 @@ class HandshakeResponseCommand implements CommandInterface {
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH;
+        return ProtocolParser::STATE_AUTH;
     }
     
     /**

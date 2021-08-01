@@ -5,14 +5,18 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\CapabilityFlags;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents a Handshake Message.
  */
-class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class HandshakeMessage implements MessageInterface {
     /**
      * The Handshake Protocol version.
      * @var int
@@ -63,17 +67,17 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     public $authPluginName;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -89,12 +93,12 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+    function parseMessage(BinaryBuffer $buffer): bool {
         $protocol = $buffer->readInt1();
         
         switch($protocol) {
@@ -102,12 +106,11 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
                 $this->parseProtocol10($buffer);
             break;
             default:
-                $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('Unsupported protocol version');
-                $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
+                $exception = new ParseException('Unsupported protocol version');
+                $exception->setState(ProtocolParser::STATE_HANDSHAKE_ERROR);
                 $exception->setBuffer('');
                 
                 throw $exception;
-            break;
         }
         
         return true;
@@ -115,10 +118,10 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -128,16 +131,16 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
      * @internal
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE;
+        return ProtocolParser::STATE_HANDSHAKE;
     }
     
     /**
      * Parses the message as Handshake V10.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      */
-    protected function parseProtocol10(\Plasma\BinaryBuffer $buffer): bool {
+    protected function parseProtocol10(BinaryBuffer $buffer): bool {
         $versionLength = \strpos($buffer->getContents(), "\x00");
         if($versionLength === false) {
             return false;
@@ -167,29 +170,29 @@ class HandshakeMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterfac
             $this->statusFlags = $buffer->readInt2();
             $this->capability += $buffer->readInt2() << 16;
             
-            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41) === 0) {
-                $exception = new \Plasma\Drivers\MySQL\Messages\ParseException('The old MySQL protocol 320 is not supported');
-                $exception->setState(\Plasma\Drivers\MySQL\ProtocolParser::STATE_HANDSHAKE_ERROR);
+            if(($this->capability & CapabilityFlags::CLIENT_PROTOCOL_41) === 0) {
+                $exception = new ParseException('The old MySQL protocol 320 is not supported');
+                $exception->setState(ProtocolParser::STATE_HANDSHAKE_ERROR);
                 $exception->setBuffer('');
                 
                 throw $exception;
             }
             
-            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
+            if(($this->capability & CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
                 $authDataLength = $buffer->readInt1();
             } else {
-                $authDataLength  = 0;
+                $authDataLength = 0;
                 $buffer->readStringLength(1);
             }
             
             $buffer->readStringLength(10);
             
-            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
+            if(($this->capability & CapabilityFlags::CLIENT_SECURE_CONNECTION) !== 0) {
                 $len = \max(13, ($authDataLength - 8));
                 $this->scramble .= \rtrim($buffer->readStringLength($len), "\x00");
             }
             
-            if(($this->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
+            if(($this->capability & CapabilityFlags::CLIENT_PLUGIN_AUTH) !== 0) {
                 $this->authPluginName = $buffer->readStringNull();
             }
         }

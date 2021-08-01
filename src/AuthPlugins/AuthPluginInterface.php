@@ -5,9 +5,15 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\AuthPlugins;
+
+use Plasma\Drivers\MySQL\Commands\CommandInterface;
+use Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Exception;
 
 /**
  * Defines the interface for auth plugins.
@@ -16,10 +22,10 @@ namespace Plasma\Drivers\MySQL\AuthPlugins;
 interface AuthPluginInterface {
     /**
      * Constructor. Receives the protocol parser and the handshake message.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser             $parser
-     * @param \Plasma\Drivers\MySQL\Messages\HandshakeMessage  $handshake
+     * @param ProtocolParser    $parser
+     * @param HandshakeMessage  $handshake
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser, \Plasma\Drivers\MySQL\Messages\HandshakeMessage $handshake);
+    function __construct(ProtocolParser $parser, HandshakeMessage $handshake);
     
     /**
      * Computes the auth response, including the length, for the handshake response.
@@ -30,9 +36,9 @@ interface AuthPluginInterface {
     
     /**
      * We received more auth data, so we send it into the auth plugin.
-     * @param \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage  $message
-     * @return \Plasma\Drivers\MySQL\Commands\CommandInterface
-     * @throws \Plasma\Exception
+     * @param AuthMoreDataMessage  $message
+     * @return CommandInterface
+     * @throws Exception
      */
-    function receiveMoreData(\Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage $message): \Plasma\Drivers\MySQL\Commands\CommandInterface;
+    function receiveMoreData(AuthMoreDataMessage $message): CommandInterface;
 }

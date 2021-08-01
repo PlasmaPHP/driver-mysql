@@ -5,24 +5,29 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
+use Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface;
+use Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Auth Switch Response command.
  * @internal
  */
 class AuthSwitchResponseCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage
+     * @var AuthSwitchRequestMessage
      */
     protected $message;
     
     /**
-     * @var \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface
+     * @var AuthPluginInterface
      */
     protected $plugin;
     
@@ -38,11 +43,15 @@ class AuthSwitchResponseCommand implements CommandInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage  $message
-     * @param \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface    $plugin
-     * @param string                                                   $password
+     * @param AuthSwitchRequestMessage  $message
+     * @param AuthPluginInterface       $plugin
+     * @param string                    $password
      */
-    function __construct(\Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage $message, \Plasma\Drivers\MySQL\AuthPlugins\AuthPluginInterface $plugin, string $password) {
+    function __construct(
+        AuthSwitchRequestMessage $message,
+        AuthPluginInterface $plugin,
+        string $password
+    ) {
         $this->message = $message;
         $this->plugin = $plugin;
         $this->password = $password;
@@ -62,7 +71,7 @@ class AuthSwitchResponseCommand implements CommandInterface {
      * @return int
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_AUTH_SENT;
+        return ProtocolParser::STATE_AUTH_SENT;
     }
     
     /**

@@ -5,9 +5,11 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Plasma\ColumnDefinitionInterface;
 
 /**
  * Text protocol rowset values decoder.
@@ -16,24 +18,23 @@ namespace Plasma\Drivers\MySQL;
 class TextProtocolValues {
     /**
      * Standard decode value, if type extensions failed.
-     * @param \Plasma\ColumnDefinitionInterface  $column
-     * @param string|null                        $param
+     * @param ColumnDefinitionInterface  $column
+     * @param mixed                      $param
      * @return mixed
-     * @throws \Plasma\Exception
      */
-    static function decode(\Plasma\ColumnDefinitionInterface $column, $param) {
+    static function decode(ColumnDefinitionInterface $column, $param) {
         $type = $column->getType();
         $flags = $column->getFlags();
         
-        if($param !== null && ($flags & \Plasma\Drivers\MySQL\FieldFlags::ZEROFILL_FLAG) === 0) {
+        if($param !== null && ($flags & FieldFlags::ZEROFILL_FLAG) === 0) {
             switch(true) {
                 case ($type === 'LONG'):
-                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 || \PHP_INT_SIZE > 4) {
+                    if(($flags & FieldFlags::UNSIGNED_FLAG) === 0 || \PHP_INT_SIZE > 4) {
                         $param = (int) $param;
                     }
                 break;
                 case ($type === 'LONGLONG'):
-                    if(($flags & \Plasma\Drivers\MySQL\FieldFlags::UNSIGNED_FLAG) === 0 && \PHP_INT_SIZE > 4) {
+                    if(($flags & FieldFlags::UNSIGNED_FLAG) === 0 && \PHP_INT_SIZE > 4) {
                         $param = (int) $param;
                     }
                 break;

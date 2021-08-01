@@ -5,21 +5,29 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Plasma\CursorInterface;
+use Plasma\Drivers\MySQL\Commands\FetchCommand;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Exception;
+use React\Promise;
+use React\Promise\PromiseInterface;
 
 /**
  * Represents a Statement Cursor.
  */
-class StatementCursor implements \Plasma\CursorInterface {
+class StatementCursor implements CursorInterface {
     /**
-     * @var \Plasma\Drivers\MySQL\Driver
+     * @var Driver
      */
     protected $driver;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Statement
+     * @var Statement
      */
     protected $statement;
     
@@ -30,10 +38,10 @@ class StatementCursor implements \Plasma\CursorInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\Driver     $driver
-     * @param \Plasma\Drivers\MySQL\Statement  $statement
+     * @param Driver     $driver
+     * @param Statement  $statement
      */
-    function __construct(\Plasma\Drivers\MySQL\Driver $driver, \Plasma\Drivers\MySQL\Statement $statement) {
+    function __construct(Driver $driver, Statement $statement) {
         $this->driver = $driver;
         $this->statement = $statement;
     }
@@ -64,11 +72,11 @@ class StatementCursor implements \Plasma\CursorInterface {
     /**
      * Closes the cursor and frees the associated resources on the server.
      * Closing a cursor more than once has no effect.
-     * @return \React\Promise\PromiseInterface
+     * @return PromiseInterface
      */
-    function close(): \React\Promise\PromiseInterface {
+    function close(): PromiseInterface {
         if($this->closed) {
-            return \React\Promise\resolve();
+            return Promise\resolve();
         }
         
         $this->closed = true;
@@ -79,18 +87,18 @@ class StatementCursor implements \Plasma\CursorInterface {
     /**
      * Fetches the given amount of rows using the cursor. Resolves with the row, an array of rows (if amount > 1), or false if no more results exist.
      * @param int  $amount
-     * @return \React\Promise\PromiseInterface
+     * @return PromiseInterface
      * @throws \LogicException    Thrown if the driver or DBMS does not support cursors.
-     * @throws \Plasma\Exception  Thrown if the underlying statement has been closed.
+     * @throws Exception  Thrown if the underlying statement has been closed.
      */
-    function fetch(int $amount = 1): \React\Promise\PromiseInterface {
+    function fetch(int $amount = 1): PromiseInterface {
         if($this->closed) {
-            return \React\Promise\resolve(false);
+            return Promise\resolve(false);
         } elseif($this->statement->isClosed()) {
-            throw new \Plasma\Exception('Underlying statement has been closed');
+            throw new Exception('Underlying statement has been closed');
         }
         
-        $fetch = new \Plasma\Drivers\MySQL\Commands\FetchCommand(
+        $fetch = new FetchCommand(
             $this->driver,
             $this,
             $this->statement->getID(),
@@ -107,15 +115,18 @@ class StatementCursor implements \Plasma\CursorInterface {
     
     /**
      * Processes the OK or EOF message.
-     * @param \Plasma\Drivers\MySQL\Messages\OkResponseMessage|\Plasma\Drivers\MySQL\Messages\EOFMessage  $message
+     * @param OkResponseMessage|EOFMessage  $message
      * @return void
      * @internal
      */
     function processOkMessage($message): void {
-        if(($message->statusFlags & \Plasma\Drivers\MySQL\StatusFlags::SERVER_STATUS_LAST_ROW_SENT) > 0) {
-            $this->close()->then(null, function (\Throwable $e) {
-                $this->driver->emit('error', array($e));
-            });
+        if(($message->statusFlags & StatusFlags::SERVER_STATUS_LAST_ROW_SENT) > 0) {
+            $this->close()->then(
+                null,
+                function (\Throwable $e) {
+                    $this->driver->emit('error', array($e));
+                }
+            );
         }
     }
 }

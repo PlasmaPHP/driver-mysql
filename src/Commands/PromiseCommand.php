@@ -5,24 +5,41 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Evenement\EventEmitterTrait;
+use Plasma\BinaryBuffer;
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Drivers\MySQL\CharacterSetFlags;
+use Plasma\Drivers\MySQL\ColumnDefinition;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\FieldFlags;
+use Plasma\Drivers\MySQL\Messages\ErrResponseMessage;
+use Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\ProtocolParser;
+use Plasma\Drivers\MySQL\TextProtocolValues;
+use Plasma\Exception;
+use Plasma\Types\TypeExtensionsManager;
+use React\Promise\Deferred;
+use React\Promise\PromiseInterface;
 
 /**
  * Abstract command which has a promise.
  * @internal
  */
 abstract class PromiseCommand implements CommandInterface {
-    use \Evenement\EventEmitterTrait;
+    use EventEmitterTrait;
     
     /**
-     * @var \Plasma\DriverInterface
+     * @var Driver
      */
     protected $driver;
     
     /**
-     * @var \React\Promise\Deferred
+     * @var Deferred
      */
     protected $deferred;
     
@@ -43,11 +60,11 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\DriverInterface  $driver
+     * @param Driver  $driver
      */
-    function __construct(\Plasma\DriverInterface $driver) {
+    function __construct(Driver $driver) {
         $this->driver = $driver;
-        $this->deferred = new \React\Promise\Deferred();
+        $this->deferred = new Deferred();
         
         $this->once('error', function (\Throwable $error) {
             $this->deferred->reject($error);
@@ -70,9 +87,9 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Get the promise.
-     * @return \React\Promise\PromiseInterface
+     * @return PromiseInterface
      */
-    function getPromise(): \React\Promise\PromiseInterface {
+    function getPromise(): PromiseInterface {
         return $this->deferred->promise();
     }
     
@@ -147,17 +164,17 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Handles the column definitions of query commands on next caller.
-     * @param \Plasma\BinaryBuffer                  $buffer
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
-     * @return \Plasma\ColumnDefinitionInterface|null
+     * @param BinaryBuffer    $buffer
+     * @param ProtocolParser  $parser
+     * @return ColumnDefinitionInterface|null
      */
-    function handleQueryOnNextCallerColumns(\Plasma\BinaryBuffer $buffer, \Plasma\Drivers\MySQL\ProtocolParser $parser): ?\Plasma\ColumnDefinitionInterface {
+    function handleQueryOnNextCallerColumns(BinaryBuffer $buffer, ProtocolParser $parser): ?ColumnDefinitionInterface {
         if($this->fieldsCount === null) {
             $fieldCount = $buffer->readIntLength();
             
             if($fieldCount === 0x00) {
                 $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
-                    $msg = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($parser);
+                    $msg = new OkResponseMessage($parser);
                     $parser->handleMessage($buffer, $msg);
                 });
                 
@@ -165,14 +182,14 @@ abstract class PromiseCommand implements CommandInterface {
             } elseif($fieldCount === 0xFB) {
                 // Handle it on future tick, so we can cleanly finish the buffer of this call
                 $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
-                    $msg = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($parser);
+                    $msg = new LocalInFileRequestMessage($parser);
                     $parser->handleMessage($buffer, $msg);
                 });
                 
                 return null;
             } elseif($fieldCount === 0xFF) {
                 $this->driver->getLoop()->futureTick(function () use (&$buffer, &$parser) {
-                    $msg = new \Plasma\Drivers\MySQL\Messages\ErrResponseMessage($parser);
+                    $msg = new ErrResponseMessage($parser);
                     $parser->handleMessage($buffer, $msg);
                 });
                 
@@ -188,10 +205,10 @@ abstract class PromiseCommand implements CommandInterface {
     
     /**
      * Parses the column definition.
-     * @param \Plasma\BinaryBuffer  $buffer
-     * @return \Plasma\ColumnDefinitionInterface
+     * @param BinaryBuffer  $buffer
+     * @return ColumnDefinitionInterface
      */
-    static function parseColumnDefinition(\Plasma\BinaryBuffer $buffer): \Plasma\ColumnDefinitionInterface {
+    static function parseColumnDefinition(BinaryBuffer $buffer): ColumnDefinitionInterface {
         $buffer->readStringLength(); // catalog - always "def"
         $buffer->readStringLength(); // database
         
@@ -215,30 +232,32 @@ abstract class PromiseCommand implements CommandInterface {
             $buffer->readStringLength();
         }*/
         
-        $charset = \Plasma\Drivers\MySQL\CharacterSetFlags::CHARSET_MAP[$charset] ?? null;
-        $type = \Plasma\Drivers\MySQL\FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
+        $charset = CharacterSetFlags::CHARSET_MAP[$charset] ?? null;
+        $type = FieldFlags::TYPE_MAP[$type] ?? 'Unknown type "'.$type.'"';
         
-        return (new \Plasma\Drivers\MySQL\ColumnDefinition($table, $name, $type, $charset, $length, $flags, $decimals));
+        return (new ColumnDefinition($table, $name, $type, $charset, $length, $flags, $decimals));
     }
     
     /**
      * Parses the text resultset row and returns the row.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return array
+     * @throws Exception
      */
-    protected function parseResultsetRow(\Plasma\BinaryBuffer $buffer): array {
+    protected function parseResultsetRow(BinaryBuffer $buffer): array {
         $row = array();
-        
-        /** @var \Plasma\ColumnDefinitionInterface  $column */
+    
+        /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+        /** @var ColumnDefinitionInterface $column */
         foreach($this->fields as $column) {
             $rawValue = $buffer->readStringLength();
             
             try {
-                $value = \Plasma\Types\TypeExtensionsManager::getManager('driver-mysql')
+                $value = TypeExtensionsManager::getManager('driver-mysql')
                     ->decodeType($column->getType(), $rawValue)
                     ->getValue();
-            } catch (\Plasma\Exception $e) {
-                $value = \Plasma\Drivers\MySQL\TextProtocolValues::decode($column, $rawValue);
+            } catch (Exception $e) {
+                $value = TextProtocolValues::decode($column, $rawValue);
             }
             
             $row[$column->getName()] = $value;

@@ -5,14 +5,17 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\BinaryBuffer;
+use Plasma\Drivers\MySQL\ProtocolParser;
 
 /**
  * Represents a Prepare Statement Ok Message.
  */
-class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\MessageInterface {
+class PrepareStatementOkMessage implements MessageInterface {
     /**
      * The statement ID.
      * @var int
@@ -38,17 +41,17 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     public $warningsCount;
     
     /**
-     * @var \Plasma\Drivers\MySQL\ProtocolParser
+     * @var ProtocolParser
      * @internal
      */
     protected $parser;
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\ProtocolParser  $parser
+     * @param ProtocolParser  $parser
      * @internal
      */
-    function __construct(\Plasma\Drivers\MySQL\ProtocolParser $parser) {
+    function __construct(ProtocolParser $parser) {
         $this->parser = $parser;
     }
     
@@ -64,12 +67,11 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     /**
      * Parses the message, once the complete string has been received.
      * Returns false if not enough data has been received, or the remaining buffer.
-     * @param \Plasma\BinaryBuffer  $buffer
+     * @param BinaryBuffer  $buffer
      * @return bool
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
      * @internal
      */
-    function parseMessage(\Plasma\BinaryBuffer $buffer): bool {
+    function parseMessage(BinaryBuffer $buffer): bool {
         if($buffer->getSize() < 11) {
             return false;
         }
@@ -92,10 +94,10 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
     
     /**
      * Get the parser which created this message.
-     * @return \Plasma\Drivers\MySQL\ProtocolParser
+     * @return ProtocolParser
      * @internal
      */
-    function getParser(): \Plasma\Drivers\MySQL\ProtocolParser {
+    function getParser(): ProtocolParser {
         return $this->parser;
     }
     
@@ -105,6 +107,6 @@ class PrepareStatementOkMessage implements \Plasma\Drivers\MySQL\Messages\Messag
      * @internal
      */
     function setParserState(): int {
-        return \Plasma\Drivers\MySQL\ProtocolParser::STATE_OK;
+        return ProtocolParser::STATE_OK;
     }
 }

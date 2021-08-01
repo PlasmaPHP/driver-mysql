@@ -5,9 +5,22 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Commands;
+
+use Plasma\ClientInterface;
+use Plasma\ColumnDefinitionInterface;
+use Plasma\Drivers\MySQL\CapabilityFlags;
+use Plasma\Drivers\MySQL\Driver;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\Messages\ParseException;
+use Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage;
+use Plasma\Drivers\MySQL\ProtocolOnNextCaller;
+use Plasma\Drivers\MySQL\Statement;
+use Plasma\StatementInterface;
+use Plasma\Utility;
 
 /**
  * Statement Prepare command.
@@ -22,7 +35,7 @@ class StatementPrepareCommand extends PromiseCommand {
     const COMMAND_ID = 0x16;
     
     /**
-     * @var \Plasma\ClientInterface
+     * @var ClientInterface
      */
     protected $client;
     
@@ -42,17 +55,17 @@ class StatementPrepareCommand extends PromiseCommand {
     protected $rewrittenParams;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage
+     * @var PrepareStatementOkMessage
      */
     protected $okResponse;
     
     /**
-     * @var \Plasma\ColumnDefinitionInterface[]
+     * @var ColumnDefinitionInterface[]
      */
     protected $params = array();
     
     /**
-     * @var \Plasma\ColumnDefinitionInterface[]
+     * @var ColumnDefinitionInterface[]
      */
     protected $fields = array();
     
@@ -62,7 +75,7 @@ class StatementPrepareCommand extends PromiseCommand {
     protected $paramsDone = false;
     
     /**
-     * @var \Plasma\StatementInterface|null
+     * @var StatementInterface|null
      */
     protected $resolveValue;
     
@@ -73,19 +86,19 @@ class StatementPrepareCommand extends PromiseCommand {
     
     /**
      * Constructor.
-     * @param \Plasma\ClientInterface  $client
-     * @param \Plasma\DriverInterface  $driver
-     * @param string                   $query
+     * @param ClientInterface  $client
+     * @param Driver  $driver
+     * @param string           $query
      */
-    function __construct(\Plasma\ClientInterface $client, \Plasma\DriverInterface $driver, string $query) {
+    function __construct(ClientInterface $client, Driver $driver, string $query) {
         parent::__construct($driver);
         
         $this->client = $client;
         $this->driver = $driver;
         $this->query = $query;
-        $this->deprecatedEOF = (($driver->getHandshake()->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
+        $this->deprecatedEOF = (($driver->getHandshake()->capability & CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0);
         
-        [ 'query' => $this->rewrittenQuery, 'parameters' => $this->rewrittenParams ] = \Plasma\Utility::parseParameters($this->query, '?');
+        ['query' => $this->rewrittenQuery, 'parameters' => $this->rewrittenParams] = Utility::parseParameters($this->query, '?');
     }
     
     /**
@@ -100,10 +113,10 @@ class StatementPrepareCommand extends PromiseCommand {
      * Sends the next received value into the command.
      * @param mixed  $value
      * @return void
-     * @throws \Plasma\Drivers\MySQL\Messages\ParseException
+     * @throws ParseException
      */
     function onNext($value): void {
-        if($value instanceof \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage) {
+        if($value instanceof PrepareStatementOkMessage) {
             $this->okResponse = $value;
             $this->fieldsCount = $this->okResponse->numColumns;
             $this->paramsDone = ($this->okResponse->numParams === 0);
@@ -111,13 +124,14 @@ class StatementPrepareCommand extends PromiseCommand {
             if($this->paramsDone && $this->fieldsCount === 0) {
                 $this->createResolve();
             }
-        } elseif($value instanceof \Plasma\Drivers\MySQL\ProtocolOnNextCaller) {
+        } elseif($value instanceof ProtocolOnNextCaller) {
             $buffer = $value->getBuffer();
             $parser = $value->getParser();
             
             $parsed = $this->handleQueryOnNextCallerColumns($buffer, $parser);
             
             if($this->paramsDone) {
+                /** @noinspection NullPointerExceptionInspection */
                 $this->fields[$parsed->getName()] = $parsed;
             } else {
                 $this->params[] = $parsed;
@@ -126,7 +140,7 @@ class StatementPrepareCommand extends PromiseCommand {
             if($this->deprecatedEOF) {
                 if($this->paramsDone && $this->fieldsCount <= \count($this->fields)) {
                     $this->createResolve();
-                } elseif($this->okResponse->numParams <= \count($this->params) && $this->resolveValue === null) {
+                } elseif($this->resolveValue === null && $this->okResponse->numParams <= \count($this->params)) {
                     $this->paramsDone = true;
                     
                     if($this->fieldsCount === 0) {
@@ -135,7 +149,7 @@ class StatementPrepareCommand extends PromiseCommand {
                 }
             }
         } elseif(
-            $value instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage || $value instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage
+            $value instanceof EOFMessage || $value instanceof OkResponseMessage
         ) {
             if(!$this->paramsDone) {
                 $this->paramsDone = true;
@@ -149,8 +163,10 @@ class StatementPrepareCommand extends PromiseCommand {
             
             $this->createResolve();
         } else {
-            throw new \Plasma\Drivers\MySQL\Messages\ParseException('Command received value of type '
-                .(\is_object($value) ? \get_class($value) : \gettype($value)).' it can not handle');
+            throw new ParseException(
+                'Command received value of type '
+                .(\is_object($value) ? \get_class($value) : \gettype($value)).' it can not handle'
+            );
         }
     }
     
@@ -173,7 +189,16 @@ class StatementPrepareCommand extends PromiseCommand {
         $queryr = $this->rewrittenQuery;
         $paramsr = $this->rewrittenParams;
         
-        $this->resolveValue = new \Plasma\Drivers\MySQL\Statement($this->client, $this->driver, $id, $this->query, $queryr, $paramsr, $this->params, $this->fields);
+        $this->resolveValue = new Statement(
+            $this->client,
+            $this->driver,
+            $id,
+            $this->query,
+            $queryr,
+            $paramsr,
+            $this->params,
+            $this->fields
+        );
         $this->deferred->resolve($this->resolveValue);
     }
 }

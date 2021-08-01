@@ -5,16 +5,36 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL;
+
+use Evenement\EventEmitterInterface;
+use Evenement\EventEmitterTrait;
+use Plasma\BinaryBuffer;
+use Plasma\CommandInterface as BaseCommandInterface;
+use Plasma\Drivers\MySQL\Commands\CommandInterface;
+use Plasma\Drivers\MySQL\Commands\QueryCommand;
+use Plasma\Drivers\MySQL\Commands\StatementPrepareCommand;
+use Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage;
+use Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage;
+use Plasma\Drivers\MySQL\Messages\EOFMessage;
+use Plasma\Drivers\MySQL\Messages\ErrResponseMessage;
+use Plasma\Drivers\MySQL\Messages\HandshakeMessage;
+use Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage;
+use Plasma\Drivers\MySQL\Messages\MessageInterface;
+use Plasma\Drivers\MySQL\Messages\OkResponseMessage;
+use Plasma\Drivers\MySQL\Messages\ParseException;
+use Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage;
+use Plasma\Exception;
+use React\Socket\ConnectionInterface;
 
 /**
  * The MySQL Protocol Parser.
  * @internal
  */
-class ProtocolParser implements \Evenement\EventEmitterInterface {
-    use \Evenement\EventEmitterTrait;
+class ProtocolParser implements EventEmitterInterface {
+    use EventEmitterTrait;
     
     /**
      * @var int
@@ -55,16 +75,16 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @var int
      */
     const CLIENT_CAPABILITIES = (
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_FOUND_ROWS |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LONG_PASSWORD |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LONG_FLAG |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_LOCAL_FILES |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_INTERACTIVE |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_TRANSACTIONS |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_SECURE_CONNECTION |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PROTOCOL_41 |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF |
-        \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_PS_MULTI_RESULTS
+        CapabilityFlags::CLIENT_FOUND_ROWS |
+        CapabilityFlags::CLIENT_LONG_PASSWORD |
+        CapabilityFlags::CLIENT_LONG_FLAG |
+        CapabilityFlags::CLIENT_LOCAL_FILES |
+        CapabilityFlags::CLIENT_INTERACTIVE |
+        CapabilityFlags::CLIENT_TRANSACTIONS |
+        CapabilityFlags::CLIENT_SECURE_CONNECTION |
+        CapabilityFlags::CLIENT_PROTOCOL_41 |
+        CapabilityFlags::CLIENT_DEPRECATE_EOF |
+        CapabilityFlags::CLIENT_PS_MULTI_RESULTS
     );
     
     /**
@@ -78,12 +98,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     const CLIENT_CHARSET_NUMBER = 0x21;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Driver
+     * @var Driver
      */
     protected $driver;
     
     /**
-     * @var \React\Socket\ConnectionInterface
+     * @var ConnectionInterface
      */
     protected $connection;
     
@@ -93,12 +113,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     protected $state = ProtocolParser::STATE_INIT;
     
     /**
-     * @var \Plasma\BinaryBuffer
+     * @var BinaryBuffer
      */
     protected $buffer;
     
     /**
-     * @var \Plasma\BinaryBuffer
+     * @var BinaryBuffer
      */
     protected $messageBuffer;
     
@@ -132,22 +152,22 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     protected $compressionSizeThreshold = 50;
     
     /**
-     * @var \Plasma\BinaryBuffer
+     * @var BinaryBuffer
      */
     protected $compressionBuffer;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\HandshakeMessage|null
+     * @var HandshakeMessage|null
      */
     protected $handshakeMessage;
     
     /**
-     * @var \Plasma\Drivers\MySQL\Messages\OkResponseMessage|null
+     * @var OkResponseMessage|null
      */
     protected $lastOkMessage;
     
     /**
-     * @var \Plasma\CommandInterface|null
+     * @var BaseCommandInterface|null
      */
     protected $currentCommand;
     
@@ -158,26 +178,26 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Constructor.
-     * @param \Plasma\Drivers\MySQL\Driver       $driver
-     * @param \React\Socket\ConnectionInterface  $connection
+     * @param Driver               $driver
+     * @param ConnectionInterface  $connection
      */
-    function __construct(\Plasma\Drivers\MySQL\Driver $driver, \React\Socket\ConnectionInterface $connection) {
+    function __construct(Driver $driver, ConnectionInterface $connection) {
         $this->driver = $driver;
         $this->connection = $connection;
         
-        $this->buffer = new \Plasma\BinaryBuffer();
-        $this->messageBuffer = new \Plasma\BinaryBuffer();
-        $this->compressionBuffer = new \Plasma\BinaryBuffer();
+        $this->buffer = new BinaryBuffer();
+        $this->messageBuffer = new BinaryBuffer();
+        $this->compressionBuffer = new BinaryBuffer();
         
         $this->addEvents();
     }
     
     /**
      * Invoke a command to execute.
-     * @param \Plasma\CommandInterface|null  $command
+     * @param BaseCommandInterface|null  $command
      * @return void
      */
-    function invokeCommand(?\Plasma\CommandInterface $command): void {
+    function invokeCommand(?BaseCommandInterface $command): void {
         if($command === null) {
             return;
         }
@@ -189,19 +209,19 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     /**
      * Executes a command, without handling any aftermath.
      * The `onComplete` callback will be immediately invoked, regardless of the `waitForCompletion` value.
-     * @param \Plasma\CommandInterface  $command
+     * @param BaseCommandInterface  $command
      * @return void
      */
-    function executeCommand(\Plasma\CommandInterface $command): void {
+    function executeCommand(BaseCommandInterface $command): void {
         $this->processCommand($command);
     }
     
     /**
      * Marks the command itself as finished, if currently running.
-     * @param \Plasma\Drivers\MySQL\Commands\CommandInterface  $command
+     * @param BaseCommandInterface  $command
      * @return void
      */
-    function markCommandAsFinished(\Plasma\CommandInterface $command): void {
+    function markCommandAsFinished(BaseCommandInterface $command): void {
         if($command === $this->currentCommand) {
             $this->currentCommand = null;
         }
@@ -219,17 +239,17 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Get the handshake message, or null.
-     * @return \Plasma\Drivers\MySQL\Messages\HandshakeMessage|null
+     * @return HandshakeMessage|null
      */
-    function getHandshakeMessage(): ?\Plasma\Drivers\MySQL\Messages\HandshakeMessage {
+    function getHandshakeMessage(): ?HandshakeMessage {
         return $this->handshakeMessage;
     }
     
     /**
      * Get the last ok response message, or null.
-     * @return \Plasma\Drivers\MySQL\Messages\OkResponseMessage|null
+     * @return OkResponseMessage|null
      */
-    function getLastOkMessage(): ?\Plasma\Drivers\MySQL\Messages\OkResponseMessage {
+    function getLastOkMessage(): ?OkResponseMessage {
         return $this->lastOkMessage;
     }
     
@@ -256,8 +276,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $packet = \substr($packet, static::CLIENT_MAX_PACKET_SIZE);
             $packlen = \strlen($packet);
             
-            $length = \Plasma\BinaryBuffer::writeInt3($partlen);
-            $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
+            $length = BinaryBuffer::writeInt3($partlen);
+            $sequence = BinaryBuffer::writeInt1((++$this->sequenceID));
             
             $packet = $length.$sequence.$partial;
             
@@ -270,8 +290,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         
         // If the packet is exactly the max size, we have to send two packets
         if($initPacklen === static::CLIENT_MAX_PACKET_SIZE) {
-            $length = \Plasma\BinaryBuffer::writeInt3(0);
-            $sequence = \Plasma\BinaryBuffer::writeInt1((++$this->sequenceID));
+            $length = BinaryBuffer::writeInt3(0);
+            $sequence = BinaryBuffer::writeInt1((++$this->sequenceID));
             $packet = $length.$sequence;
             
             if($this->compressionEnabled && $this->state === static::STATE_OK) {
@@ -284,7 +304,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Sets the parse callback.
-     * @param callable $callback
+     * @param callable  $callback
      * @return void
      */
     function setParseCallback(callable $callback): void {
@@ -293,14 +313,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Processes a command.
-     * @param \Plasma\CommandInterface|null  $command
+     * @param BaseCommandInterface|null  $command
      * @return void
      */
-    protected function processCommand(?\Plasma\CommandInterface $command = null) {
-        if($command === null && $this->currentCommand instanceof \Plasma\CommandInterface) {
+    protected function processCommand(?BaseCommandInterface $command = null): void {
+        if($command === null && $this->currentCommand instanceof BaseCommandInterface) {
             $command = $this->currentCommand;
             
-            if($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) {
+            if($this->currentCommand instanceof CommandInterface) {
                 $state = $command->setParserState();
                 if($state !== -1) {
                     $this->state = $state;
@@ -312,14 +332,15 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             return;
         }
         
-        if(!($command instanceof \Plasma\Drivers\MySQL\Commands\CommandInterface) || $command->resetSequence()) {
+        if(!($command instanceof CommandInterface) || $command->resetSequence()) {
             $this->sequenceID = -1;
             $this->compressionID = -1;
         }
         
         try {
             $msg = $command->getEncodedMessage();
-        } catch (\Plasma\Exception $e) {
+        } /** @noinspection PhpRedundantCatchClauseInspection */
+        catch (Exception $e) {
             $this->currentCommand = null;
             $command->onError($e);
             return;
@@ -339,8 +360,10 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     /**
      * Processes the buffer.
      * @return void
+     * @throws Exception
+     * @throws ParseException
      */
-    protected function processBuffer() {
+    protected function processBuffer(): void {
         if($this->buffer->getSize() < 4) {
             return;
         }
@@ -357,7 +380,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         } elseif($this->messageBuffer->getSize() > 0) {
             $this->messageBuffer->append($buffer->read($length));
             $buffer = $this->messageBuffer;
-            $this->messageBuffer = new \Plasma\BinaryBuffer();
+            $this->messageBuffer = new BinaryBuffer();
         }
         
         if($buffer->getSize() < $length) {
@@ -375,64 +398,65 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             return;
         }
         
-        /** @var \Plasma\Drivers\MySQL\Messages\MessageInterface  $message */
+        /** @var MessageInterface $message */
         $message = null;
         
         if($this->state === static::STATE_INIT) {
-            $message = new \Plasma\Drivers\MySQL\Messages\HandshakeMessage($this);
+            $message = new HandshakeMessage($this);
         } else {
             $firstChar = $buffer->read(1);
             
-            $okRespID = \Plasma\Drivers\MySQL\Messages\OkResponseMessage::getID();
+            $okRespID = OkResponseMessage::getID();
             $isOkMessage = (
                 (
                     $firstChar === $okRespID &&
-                    (!($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\QueryCommand)
-                        || \strtoupper(\substr($this->currentCommand->getQuery(), 0, 6)) !== 'SELECT') // Fix for MySQL 5.7
+                    (!($this->currentCommand instanceof QueryCommand)
+                        || \stripos($this->currentCommand->getQuery(), 'SELECT') !== 0) // Fix for MySQL 5.7
                 ) ||
                 (
-                    $firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() &&
-                    ($this->handshakeMessage->capability & \Plasma\Drivers\MySQL\CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0
+                    $firstChar === EOFMessage::getID() &&
+                    ($this->handshakeMessage->capability & CapabilityFlags::CLIENT_DEPRECATE_EOF) !== 0
                 )
             );
             
             switch(true) {
-                case ($firstChar === \Plasma\Drivers\MySQL\Messages\ErrResponseMessage::getID()):
-                    $message = new \Plasma\Drivers\MySQL\Messages\ErrResponseMessage($this);
+                case ($firstChar === ErrResponseMessage::getID()):
+                    $message = new ErrResponseMessage($this);
                 break;
-                case ($this->currentCommand instanceof \Plasma\Drivers\MySQL\Commands\StatementPrepareCommand && $firstChar === $okRespID):
-                    $message = new \Plasma\Drivers\MySQL\Messages\PrepareStatementOkMessage($this);
+                case ($this->currentCommand instanceof StatementPrepareCommand && $firstChar === $okRespID):
+                    $message = new PrepareStatementOkMessage($this);
                 break;
                 case $isOkMessage:
-                    $message = new \Plasma\Drivers\MySQL\Messages\OkResponseMessage($this);
+                    $message = new OkResponseMessage($this);
                     $this->lastOkMessage = $message;
                     
-                    $this->driver->getLoop()->futureTick(function () use ($message) {
-                        $this->driver->emit('eventRelay', array('serverOkMessage', $message));
-                    });
+                    $this->driver->getLoop()->futureTick(
+                        function () use ($message) {
+                            $this->driver->emit('eventRelay', array('serverOkMessage', $message));
+                        }
+                    );
                 break;
-                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID()):
-                    $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($this);
+                case ($this->state < static::STATE_OK && $firstChar === AuthMoreDataMessage::getID()):
+                    $message = new AuthMoreDataMessage($this);
                 break;
-                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage::getID()):
-                    $message = new \Plasma\Drivers\MySQL\Messages\AuthSwitchRequestMessage($this);
+                case ($this->state < static::STATE_OK && $firstChar === AuthSwitchRequestMessage::getID()):
+                    $message = new AuthSwitchRequestMessage($this);
                 break;
-                case ($this->state < static::STATE_OK && $firstChar === \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage::getID()):
-                    $message = new \Plasma\Drivers\MySQL\Messages\AuthMoreDataMessage($this);
+                case ($firstChar === EOFMessage::getID() && $length < 6):
+                    $message = new EOFMessage($this);
                 break;
-                case ($firstChar === \Plasma\Drivers\MySQL\Messages\EOFMessage::getID() && $length < 6):
-                    $message = new \Plasma\Drivers\MySQL\Messages\EOFMessage($this);
-                break;
-                case ($firstChar === \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage::getID()):
+                case ($firstChar === LocalInFileRequestMessage::getID()):
                     if($this->driver->getOptions()['localInFile.enable']) {
-                        $message = new \Plasma\Drivers\MySQL\Messages\LocalInFileRequestMessage($this);
+                        $message = new LocalInFileRequestMessage($this);
                     } else {
-                        $this->emit('error', array((new \Plasma\Exception('MySQL server requested a local file, but the driver options is disabled'))));
+                        $this->emit('error', array((new Exception('MySQL server requested a local file, but the driver options is disabled'))));
                         
                         if($this->buffer->getSize() > 0) {
-                            $this->driver->getLoop()->futureTick(function () {
-                                $this->processBuffer();
-                            });
+                            $this->driver->getLoop()->futureTick(
+                                function () {
+                                    $this->processBuffer();
+                                }
+                            );
                         }
                         
                         return;
@@ -445,12 +469,12 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                         $parse = $this->parseCallback;
                         $this->parseCallback = null;
                         
-                        $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
+                        $caller = new ProtocolOnNextCaller($this, $buffer);
                         $parse($caller);
                     } elseif($this->currentCommand !== null) {
                         $command = $this->currentCommand;
                         
-                        $caller = new \Plasma\Drivers\MySQL\ProtocolOnNextCaller($this, $buffer);
+                        $caller = new ProtocolOnNextCaller($this, $buffer);
                         $command->onNext($caller);
                         
                         if($command->hasFinished()) {
@@ -460,13 +484,14 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                     }
                     
                     if($this->buffer->getSize() > 0) {
-                        $this->driver->getLoop()->futureTick(function () {
-                            $this->processBuffer();
-                        });
+                        $this->driver->getLoop()->futureTick(
+                            function () {
+                                $this->processBuffer();
+                            }
+                        );
                     }
                     
                     return;
-                break;
             }
         }
         
@@ -475,7 +500,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             $this->state = $state;
         }
         
-        if($message instanceof \Plasma\Drivers\MySQL\Messages\HandshakeMessage) {
+        if($message instanceof HandshakeMessage) {
             $this->handshakeMessage = $message;
         }
         
@@ -484,28 +509,29 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
     
     /**
      * Handles an incoming message.
-     * @param \Plasma\BinaryBuffer                             $buffer
-     * @param \Plasma\Drivers\MySQL\Messages\MessageInterface  $message
+     * @param BinaryBuffer      $buffer
+     * @param MessageInterface  $message
      * @return void
      */
-    function handleMessage(\Plasma\BinaryBuffer $buffer, \Plasma\Drivers\MySQL\Messages\MessageInterface $message) {
+    function handleMessage(BinaryBuffer $buffer, MessageInterface $message): void {
         try {
-            $buffer = $message->parseMessage($buffer);
-            if(!$buffer) {
+            $buffer2 = $message->parseMessage($buffer);
+            if(!$buffer2) {
                 return;
             }
             
             if($this->currentCommand !== null) {
                 if(
-                    ($message instanceof \Plasma\Drivers\MySQL\Messages\OkResponseMessage || $message instanceof \Plasma\Drivers\MySQL\Messages\EOFMessage)
+                    ($message instanceof OkResponseMessage || $message instanceof EOFMessage)
                     && $this->currentCommand->hasFinished()
                 ) {
                     $command = $this->currentCommand;
                     $this->currentCommand = null;
                     
                     $command->onComplete();
-                } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
-                    $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
+                } /** @noinspection NotOptimalIfConditionsInspection */
+                elseif($message instanceof ErrResponseMessage) {
+                    $error = new Exception($message->errorMessage, $message->errorCode);
                     
                     $command = $this->currentCommand;
                     $this->currentCommand = null;
@@ -523,22 +549,22 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
                         $command->onComplete();
                     }
                 }
-            } elseif($message instanceof \Plasma\Drivers\MySQL\Messages\ErrResponseMessage) {
-                $error = new \Plasma\Exception($message->errorMessage, $message->errorCode);
+            } elseif($message instanceof ErrResponseMessage) {
+                $error = new Exception($message->errorMessage, $message->errorCode);
                 $this->emit('error', array($error));
             }
             
             $this->emit('message', array($message));
-        } catch (\Plasma\Drivers\MySQL\Messages\ParseException $e) {
+        } catch (ParseException $e) {
             $state = $e->getState();
             if($state !== null) {
                 $this->state = $state;
             }
             
-            $buffer = $e->getBuffer();
-            if($buffer !== null) {
+            $buffer2 = $e->getBuffer();
+            if($buffer2 !== null) {
                 $this->buffer->clear();
-                $this->buffer->append($buffer);
+                $this->buffer->append($buffer2);
             }
             
             if($this->currentCommand !== null) {
@@ -547,7 +573,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
             
             $this->emit('error', array($e));
             $this->connection->close();
-        } catch (\Plasma\Exception $e) {
+        } /** @noinspection PhpRedundantCatchClauseInspection */
+        catch (Exception $e) {
             if($this->currentCommand !== null) {
                 $command = $this->currentCommand;
                 $this->currentCommand = null;
@@ -559,9 +586,11 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         if($this->buffer->getSize() > 0) {
-            $this->driver->getLoop()->futureTick(function () {
-                $this->processBuffer();
-            });
+            $this->driver->getLoop()->futureTick(
+                function () {
+                    $this->processBuffer();
+                }
+            );
         }
     }
     
@@ -572,15 +601,16 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      */
     protected function compressPacket(string $packet): string {
         $length = \strlen($packet);
-        $packetlen = \Plasma\BinaryBuffer::writeInt3($length);
-        $id = \Plasma\BinaryBuffer::writeInt1((++$this->compressionID));
+        $packetlen = BinaryBuffer::writeInt3($length);
+        $id = BinaryBuffer::writeInt1((++$this->compressionID));
         
         if($length < $this->compressionSizeThreshold) {
-            return $packetlen.$id.\Plasma\BinaryBuffer::writeInt3(0).$packet;
+            return $packetlen.$id.BinaryBuffer::writeInt3(0).$packet;
         }
         
+        /** @noinspection PhpComposerExtensionStubsInspection */
         $compressed = \zlib_encode($packet, \ZLIB_ENCODING_DEFLATE);
-        $compresslen = \Plasma\BinaryBuffer::writeInt3(\strlen($compressed));
+        $compresslen = BinaryBuffer::writeInt3(\strlen($compressed));
         
         return $compresslen.$id.$packetlen.$compressed;
     }
@@ -590,7 +620,7 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * @return void
      */
     protected function decompressBuffer(): void {
-        $buffer = new \Plasma\BinaryBuffer();
+        $buffer = new BinaryBuffer();
         
         // Copy packet header to new buffer
         for($i = 0; $i < 7; $i++) {
@@ -614,6 +644,8 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
         }
         
         $rawPacket = $this->compressionBuffer->read($length);
+        
+        /** @noinspection PhpComposerExtensionStubsInspection */
         $packet = \zlib_decode($rawPacket, $uncompressedLength);
         
         if(\strlen($packet) !== $uncompressedLength) {
@@ -634,31 +666,37 @@ class ProtocolParser implements \Evenement\EventEmitterInterface {
      * Adds the events to the connection.
      * @return void
      */
-    protected function addEvents() {
-        $this->connection->on('data', function ($chunk) {
-            if($this->compressionEnabled && $this->state === static::STATE_OK) {
-                $this->compressionBuffer->append($chunk);
-                
-                if($this->compressionBuffer->getSize() > 7) {
-                    $this->decompressBuffer();
+    protected function addEvents(): void {
+        $this->connection->on(
+            'data',
+            function ($chunk) {
+                if($this->compressionEnabled && $this->state === static::STATE_OK) {
+                    $this->compressionBuffer->append($chunk);
+                    
+                    if($this->compressionBuffer->getSize() > 7) {
+                        $this->decompressBuffer();
+                    }
+                } else {
+                    $this->buffer->append($chunk);
                 }
-            } else {
-                $this->buffer->append($chunk);
+                
+                $this->processBuffer();
             }
-            
-            $this->processBuffer();
-        });
+        );
         
-        $this->connection->on('close', function () {
-            $this->handleClose();
-        });
+        $this->connection->on(
+            'close',
+            function () {
+                $this->handleClose();
+            }
+        );
     }
     
     /**
      * Connection close handler.
      * @return void
      */
-    protected function handleClose() {
+    protected function handleClose(): void {
         if($this->state === static::STATE_AUTH || $this->state === static::STATE_AUTH_SENT) {
             $this->state = static::STATE_AUTH_ERROR;
         }

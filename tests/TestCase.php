@@ -5,21 +5,27 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
+ * @noinspection PhpUnhandledExceptionInspection
 */
 
 namespace Plasma\Drivers\MySQL\Tests;
 
+use React\EventLoop\Factory;
+use React\EventLoop\LoopInterface;
+use React\Promise\PromiseInterface;
+use function Clue\React\Block\await;
+
 class TestCase extends \PHPUnit\Framework\TestCase {
     /**
-     * @var \React\EventLoop\LoopInterface
+     * @var LoopInterface
      */
     public $loop;
     
     function setUp() {
-        $this->loop = \React\EventLoop\Factory::create();
+        $this->loop = Factory::create();
     }
     
-    function await(\React\Promise\PromiseInterface $promise, float $timeout = 10.0) {
-        return \Clue\React\Block\await($promise, $this->loop, $timeout);
+    function await(PromiseInterface $promise, float $timeout = 10.0) {
+        return await($promise, $this->loop, $timeout);
     }
 }

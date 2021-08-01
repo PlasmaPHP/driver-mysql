@@ -5,7 +5,7 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
 
@@ -16,7 +16,7 @@ namespace Plasma\Drivers\MySQL\Messages;
 class MessageUtility {
     /**
      * Debug.
-     * @param mixed $debug
+     * @param mixed  $debug
      * @return void
      * @codeCoverageIgnore
      */

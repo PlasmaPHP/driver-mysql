@@ -5,14 +5,16 @@
  *
  * Website: https://github.com/PlasmaPHP
  * License: https://github.com/PlasmaPHP/driver-mysql/blob/master/LICENSE
-*/
+ */
 
 namespace Plasma\Drivers\MySQL\Messages;
+
+use Plasma\Exception;
 
 /**
  * Represents an exception during message parsing.
  */
-class ParseException extends \Plasma\Exception {
+class ParseException extends Exception {
     /**
      * @var int|null
      */
@@ -21,7 +23,7 @@ class ParseException extends \Plasma\Exception {
     /**
      * @var string
      */
-    protected $remainingBuffer = null;
+    protected $remainingBuffer;
     
     /**
      * Sets the new parser state
