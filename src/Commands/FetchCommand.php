@@ -72,15 +72,12 @@ class FetchCommand extends StatementExecuteCommand {
         $this->fields = $fields;
         $this->amount = $amount;
         
-        $this->on(
-            'data',
-            function ($row) {
-                $this->rows[] = $row;
-            }
-        );
+        $this->on('data', function ($row) {
+            $this->rows[] = $row;
+        });
         
         $this->removeAllListeners('end');
-        $this->once('end',function () {
+        $this->once('end', function () {
             // Let the event loop read the stream buffer before resolving
             $this->driver->getLoop()->futureTick(function () {
                 // Unwrap if we only have one row
