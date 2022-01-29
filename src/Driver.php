@@ -1003,7 +1003,7 @@ class Driver implements DriverInterface {
                                     $this->createHandshakeResponse($message, $credentials, $clientFlags, $plugin, $deferred);
                                 },
                                 function (\Throwable $error) use (&$deferred) {
-                                    $deferred->reject($$error);
+                                    $deferred->reject($error);
                                     $this->connection->close();
                                 }
                             );
